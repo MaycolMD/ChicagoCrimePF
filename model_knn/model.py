@@ -44,7 +44,7 @@ for day, data in df_data.groupby('day_week'):
 
 
 # REMEMBER CHANGE subdataframes[x] where x is day of the week you want to get. It is missing 3,4,5,6 and 7
-datos_dayWeek = subdataframes[4]
+datos_dayWeek = subdataframes[7]
 df_data = datos_dayWeek
 
 
@@ -77,4 +77,4 @@ y_predicted = clfKNN.predict(X_test)
 print(accuracy_score(y_expected,y_predicted))
 print(confusion_matrix(y_expected,y_predicted))
 
-joblib.dump(clfKNN, 'model_knn_dayWeek4.pkl')
+joblib.dump(clfKNN, 'model_knn_dayWeek7.pkl')
