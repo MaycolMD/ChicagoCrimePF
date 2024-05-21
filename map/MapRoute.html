@@ -123,7 +123,8 @@
                         // punto inicial A
                         startPoint = new atlas.data.Feature(new atlas.data.Point([ui.item.position.lon, ui.item.position.lat]), {
                             title: ui.item.poi.name,
-                            icon: "pin-blue"
+                            icon: "pin-blue",
+                            probability: 0,
                         });
 
                         console.log(ui.item)
@@ -190,7 +191,8 @@
                         // punto final B
                         endPoint = new atlas.data.Feature(new atlas.data.Point([ui.item.position.lon, ui.item.position.lat]), {
                             title: ui.item.poi.name,
-                            icon: "pin-red"
+                            icon: "pin-red",
+                            probability: 0,
                         });
 
                         if (startPoint) {
@@ -255,39 +257,87 @@
             });
             // Query Ward
             // Solicitar el MultiPolygon del Ward desde el endpoint Flask
-            var wardId = 2;  // Cambia esto según el Ward que desees obtener
-            fetch(`http://127.0.0.1:5000/get_ward_polygon?ward_id=${wardId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.type === 'MultiPolygon') {
-                        // Crear el objeto GeoJSON para el MultiPolygon
-                        console.log(data)
-                        var multiPolygon = {
-                            "type": "Feature",
-                            "geometry": data,
-                            "properties": {
-                                "strokeColor": "#AF7AC5",  // Color del borde del polígono
-                                "fillColor": "rgba(175, 122, 197, 0.5)"  // Color de relleno del polígono
-                            }
-                        };
+            var wards = [[1, 0.8],
+            [2, 0.9],
+            [3, 0.8]];  // Cambia esto según el Ward que desees obtener
 
-                        // Añadir el objeto GeoJSON a la fuente de datos.
-                        datasource.add(multiPolygon);
+            console.log(wards)
+            //Create a popup but leave it closed so we can update it and display it later.
+            popup = new atlas.Popup({
+                position: [0, 0]
+            });
 
-                        // Añadir una capa para renderizar el MultiPolygon.
-                        map.layers.add(new atlas.layer.PolygonLayer(datasource, null, {
-                            filter: ['==', ['geometry-type'], 'Polygon'], // Renderizar solo los polígonos
-                            fillColor: ['get', 'fillColor'],  // Utilizar el color de relleno definido en las propiedades
-                            strokeColor: ['get', 'strokeColor'],  // Utilizar el color del borde definido en las propiedades
-                            strokeWidth: 2
-                        }));
-                    } else {
-                        console.error("Error: Datos de polígono no válidos");
-                    }
-                })
-                .catch(error => {
-                    console.error('Error al obtener los datos del polígono:', error);
-                });
+            function getRandomPastelColor() {
+                var alpha = 0.5;
+                var pastelColors = [
+                    "rgba(119, 221, 119, " + alpha + ")", // Pastel Green
+                    "rgba(255, 105, 97, " + alpha + ")",  // Pastel Red
+                    "rgba(174, 198, 207, " + alpha + ")", // Pastel Blue
+                    "rgba(255, 179, 71, " + alpha + ")",  // Pastel Orange
+                    "rgba(253, 253, 150, " + alpha + ")"  // Pastel Yellow
+                    // Puedes agregar más colores pastel según sea necesario
+                ];
+                var randomIndex = Math.floor(Math.random() * pastelColors.length);
+                return pastelColors[randomIndex];
+            }
+
+            wards.forEach(function (wardId) {
+                fetch(`http://127.0.0.1:5000/get_ward_polygon?ward_id=${wardId[0]}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.type === 'MultiPolygon') {
+                            // Crear el objeto GeoJSON para el MultiPolygon
+                            var multiPolygon = {
+                                "type": "Feature",
+                                "geometry": data,
+                                "properties": {
+                                    "strokeColor": getRandomPastelColor(),  // Color del borde del polígono
+                                    "fillColor": getRandomPastelColor(), // Color de relleno del polígono
+                                    "ward": wardId[0],
+                                    "probability": wardId[1]
+                                }
+                            };
+
+                            // Añadir el objeto GeoJSON a la fuente de datos.
+                            datasource.add(multiPolygon);
+
+                            var polygonLayer = new atlas.layer.PolygonLayer(datasource, null, {
+                                filter: ['==', ['geometry-type'], 'Polygon'], // Renderizar solo los polígonos
+                                fillColor: ['get', 'fillColor'],  // Utilizar el color de relleno definido en las propiedades
+                                strokeColor: ['get', 'strokeColor'],  // Utilizar el color del borde definido en las propiedades
+                                strokeWidth: 2
+                            })
+                            // Añadir una capa para renderizar el MultiPolygon.
+                            map.layers.add(polygonLayer);
+
+                            //Add a mouse move event to the polygon layer to show a popup with information.
+                            map.events.add('mousemove', polygonLayer, function (e) {
+                                if (e.shapes && e.shapes.length > 0) {
+                                    var properties = e.shapes[0].getProperties();
+
+                                    //Update the content of the popup.
+                                    popup.setOptions({
+                                        content: '<div style="padding:10px"><b> Ward: ' + properties.ward + '</b><br/>Probabilidad de crimen: ' + (properties.probability * 100).toFixed(2) + ' %</div>',
+                                        position: e.position
+                                    });
+
+                                    //Open the popup.
+                                    popup.open(map);
+                                }
+                            });
+
+                            //Add a mouse leave event to the polygon layer to hide the popup.
+                            map.events.add('mouseleave', polygonLayer, function (e) {
+                                popup.close();
+                            });
+                        } else {
+                            console.error("Error: Datos de polígono no válidos");
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error al obtener los datos del polígono:', error);
+                    });
+            })
 
             // Coordenadas Inicio : Coordenadas final
             var query = startPoint.geometry.coordinates[1] + "," +
@@ -373,36 +423,29 @@
             });
 
             // Almacena una referencia al popup abierto.
-            var currentPopup;
+            var currentPopup = new atlas.Popup({
+                position: [0, 0]
+            });
 
-            // Add mouseover event to show probability when hovering over a point.
-            map.events.add('mouseover', symbolLayer, function (e) {
-                if (e && e.shapes && e.shapes.length > 0) {
+            //Add a mouse move event to the polygon layer to show a popup with information.
+            map.events.add('mousemove', symbolLayer, function (e) {
+                if (e.shapes && e.shapes.length > 0) {
                     var properties = e.shapes[0].getProperties();
-                    var probability = properties.probability || 'No disponible';
-                    var content = '<div>Probabilidad: ' + probability + '</div>';
 
-                    // Crea un nuevo popup si no hay uno abierto actualmente.
-                    if (!currentPopup) {
-                        currentPopup = new atlas.Popup({
-                            position: e.shapes[0].getCoordinates(),
-                            pixelOffset: [0, -15]
-                        });
-                    }
+                    //Update the content of the popup.
+                    currentPopup.setOptions({
+                        content: '<div style="padding:10px"><b>' + properties.title + '</b><br/>Probabilidad: ' + (properties.probability * 100).toFixed(2) + ' %</div>',
+                        position: e.position
+                    });
 
-                    // Actualiza el contenido y abre el popup.
-                    currentPopup.setOptions({ content: content });
+                    //Open the currentPopup.
                     currentPopup.open(map);
                 }
             });
 
-            // Add mouseout event to close popup when mouse leaves a point.
-            map.events.add('mouseout', symbolLayer, function () {
-                // Cierra el popup actual si existe.
-                if (currentPopup) {
-                    currentPopup.close();
-                    currentPopup = null; // Elimina la referencia al popup cerrado.
-                }
+            //Add a mouse leave event to the polygon layer to hide the popup.
+            map.events.add('mouseleave', symbolLayer, function (e) {
+                currentPopup.close();
             });
 
             map.layers.add(symbolLayer);
