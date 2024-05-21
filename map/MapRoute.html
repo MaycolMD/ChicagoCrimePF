@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Map Route</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Add references to the Azure Maps Map control JavaScript and CSS files. -->
+    <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.css" type="text/css">
+    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+    <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.js"></script>
+
+    <!-- Load JQuery UI -->
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css">
+
+    <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+
+    <!-- Add a reference to the Azure Maps Rest Helper JavaScript file. -->
+    <script src="https://samples.azuremaps.com/lib/azure-maps/azure-maps-helper.min.js"></script>
+
+    <script>
+        var map, datasource, client;
+
+        var endPoint, startPoint;
+
+        var geocodeServiceUrlTemplate = 'https://{azMapsDomain}/search/{searchType}/json?typeahead=true&api-version=1.0&query={query}&language={language}&lon={lon}&lat={lat}&countrySet={countrySet}&view=Auto';
+
+        // Acceder a la cuenta de Azure para usar Azure Maps
+        function GetMap() {
+            //Instantiate a map object
+            map = new atlas.Map('myMap', {
+                view: 'Auto',
+                // Replace <Your Azure Maps Key> with your Azure Maps subscription key. https://aka.ms/am-primaryKey
+                authOptions: {
+                    authType: 'subscriptionKey',
+                    subscriptionKey: ''
+                }
+            });
+
+            // Inicialización de todo lo que va a hacer el Map
+            //Wait until the map resources are ready.
+            map.events.add('ready', function () {
+
+                // Add Traffic Flow to the Map
+                // map.setTraffic({
+                //     flow: "relative"
+                // });
+                //Create a data source and add it to the map.
+                // La data fuente es el mapa
+                datasource = new atlas.source.DataSource();
+                map.sources.add(datasource);
+
+                // Así se verán las líneas
+                //Add a layer for rendering the route lines and have it render under the map labels.
+                map.layers.add(new atlas.layer.LineLayer(datasource, null, {
+                    strokeColor: ['get', 'strokeColor'],
+                    strokeWidth: 5,
+                    lineJoin: 'round',
+                    lineCap: 'round'
+                }), 'labels');
+
+                //Renderizar puntos o juntarlos en multipuntos
+                //Add a layer for rendering point data.
+                map.layers.add(new atlas.layer.SymbolLayer(datasource, null, {
+                    iconOptions: {
+                        image: ['get', 'icon'],
+                        allowOverlap: true
+                    },
+                    textOptions: {
+                        textField: ['get', 'title'],
+                        offset: [0, 1.2]
+                    },
+                    filter: ['any', ['==', ['geometry-type'], 'Point'], ['==', ['geometry-type'], 'MultiPoint']] //Only render Point or MultiPoints in this layer.
+                }));
+
+                // Punto inicial A
+                //Create the GeoJSON objects which represent the start and end points of the route.
+                var initialPoint = new atlas.data.Feature(new atlas.data.Point([-87.6667239, 42.0086426]), {
+                    title: "Rogers Park",
+                    icon: "pin-blue"
+                });
+
+                // punto final B
+                var finalPoint = new atlas.data.Feature(new atlas.data.Point([-87.8106004, 41.8871291]), {
+                    title: "Oak Park",
+                    icon: "pin-red"
+                });
+
+                // Definir dónde va a estar la cámara inicial (entre punto A y punto B en este caso)
+                map.setCamera({
+                    bounds: atlas.data.BoundingBox.fromData([initialPoint, finalPoint]),
+                    padding: 150,
+                });
+
+                //Create a jQuery autocomplete UI widget.
+                $("#queryTbxInicio").autocomplete({
+                    minLength: 3,   //Don't ask for suggestions until atleast 3 characters have been typed. This will reduce costs by not making requests that will likely not have much relevance.
+                    source: function (request, response) {
+                        var center = map.getCamera().center;
+
+                        var countryIso = 'US';
+
+                        //Create a URL to the Azure Maps search service to perform the search.
+                        var requestUrl = geocodeServiceUrlTemplate.replace('{query}', encodeURIComponent(request.term))
+                            .replace('{searchType}', 'poi')
+                            .replace('{language}', 'en-US')
+                            .replace('{lon}', center[0])    //Use a lat and lon value of the center the map to bais the results to the current map view.
+                            .replace('{lat}', center[1])
+                            .replace('{countrySet}', countryIso); //A comma seperated string of country codes to limit the suggestions to.
+
+                        processRequest(requestUrl).then(data => {
+                            response(data.results);
+                        });
+                    },
+                    select: function (event, ui) {
+                        event.preventDefault(); // Evitar que se restablezca el valor del campo
+
+                        //Remove any previous added data from the map.
+                        datasource.clear();
+
+                        // punto inicial A
+                        startPoint = new atlas.data.Feature(new atlas.data.Point([ui.item.position.lon, ui.item.position.lat]), {
+                            title: ui.item.poi.name,
+                            icon: "pin-blue"
+                        });
+
+                        console.log(ui.item)
+
+                        if (endPoint) {
+                            datasource.add(endPoint);
+                        }
+
+                        datasource.add(startPoint);
+                        //Zoom the map into the selected location.
+                        map.setCamera({
+                            bounds: [
+                                ui.item.viewport.topLeftPoint.lon, ui.item.viewport.btmRightPoint.lat,
+                                ui.item.viewport.btmRightPoint.lon, ui.item.viewport.topLeftPoint.lat
+                            ],
+                            padding: 400
+                        });
+
+                        // Update the input field with the full selected value
+                        $(this).val(ui.item.address.freeformAddress);
+
+                        return false;
+                    }
+                }).autocomplete("instance")._renderItem = function (ul, item) {
+                    //Format the displayed suggestion to show the formatted suggestion string.
+                    var suggestionLabel = item.address.freeformAddress;
+
+                    if (item.poi && item.poi.name) {
+                        suggestionLabel = item.poi.name + ' (' + suggestionLabel + ')';
+                    }
+
+                    return $("<li>")
+                        .append("<a>" + suggestionLabel + "</a>")
+                        .appendTo(ul);
+                };
+
+                //Create a jQuery autocomplete UI widget.
+                $("#queryTbxFin").autocomplete({
+                    minLength: 3,   //Don't ask for suggestions until atleast 3 characters have been typed. This will reduce costs by not making requests that will likely not have much relevance.
+                    source: function (request, response) {
+                        var center = map.getCamera().center;
+
+                        var countryIso = 'US';
+
+                        console.log(encodeURIComponent(request.term))
+                        //Create a URL to the Azure Maps search service to perform the search.
+                        var requestUrl = geocodeServiceUrlTemplate.replace('{query}', encodeURIComponent(request.term))
+                            .replace('{searchType}', 'poi')
+                            .replace('{language}', 'en-US')
+                            .replace('{lon}', center[0])    //Use a lat and lon value of the center the map to bais the results to the current map view.
+                            .replace('{lat}', center[1])
+                            .replace('{countrySet}', countryIso); //A comma seperated string of country codes to limit the suggestions to.
+
+                        processRequest(requestUrl).then(data => {
+                            response(data.results);
+                        });
+                    },
+                    select: function (event, ui) {
+                        event.preventDefault(); // Evitar que se restablezca el valor del campo
+
+                        //Remove any previous added data from the map.
+                        datasource.clear();
+
+                        // punto final B
+                        endPoint = new atlas.data.Feature(new atlas.data.Point([ui.item.position.lon, ui.item.position.lat]), {
+                            title: ui.item.poi.name,
+                            icon: "pin-red"
+                        });
+
+                        if (startPoint) {
+                            datasource.add(startPoint);
+                        }
+
+                        datasource.add(endPoint);
+                        //Zoom the map into the selected location.
+                        map.setCamera({
+                            bounds: [
+                                ui.item.viewport.topLeftPoint.lon, ui.item.viewport.btmRightPoint.lat,
+                                ui.item.viewport.btmRightPoint.lon, ui.item.viewport.topLeftPoint.lat
+                            ],
+                            padding: 400
+                        });
+
+                        // Update the input field with the full selected value
+                        $(this).val(ui.item.address.freeformAddress);
+
+                        return false; // Prevent the default behavior
+                    }
+                }).autocomplete("instance")._renderItem = function (ul, item) {
+                    //Format the displayed suggestion to show the formatted suggestion string.
+                    var suggestionLabel = item.address.freeformAddress;
+
+                    if (item.poi && item.poi.name) {
+                        suggestionLabel = item.poi.name + ' (' + suggestionLabel + ')';
+                    }
+
+                    return $("<li>")
+                        .append("<a>" + suggestionLabel + "</a>")
+                        .appendTo(ul);
+                };
+            });
+        }
+
+        function enviarFormulario() {
+            // Aquí puedes obtener los valores del formulario y realizar las acciones necesarias.
+            var inicio = document.getElementById("queryTbxInicio").value;
+            var fin = document.getElementById("queryTbxFin").value;
+            var transporte = document.getElementById("transporte").value;
+            console.log("Inicio:", inicio);
+            console.log("Fin:", fin);
+            console.log("Transporte:", transporte);
+
+            // Punto inicial A
+            //Create the GeoJSON objects which represent the start and end points of the route.
+
+            console.log(endPoint)
+
+
+            datasource.clear();
+
+            // Agregar los puntos
+            //Add the data to the data source.
+            datasource.add([startPoint, endPoint]);
+
+            // Definir dónde va a estar la cámara inicial (entre punto A y punto B en este caso)
+            map.setCamera({
+                bounds: atlas.data.BoundingBox.fromData([startPoint, endPoint]),
+                padding: 150,
+            });
+            // Query Ward
+            // Solicitar el MultiPolygon del Ward desde el endpoint Flask
+            var wardId = 2;  // Cambia esto según el Ward que desees obtener
+            fetch(`http://127.0.0.1:5000/get_ward_polygon?ward_id=${wardId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.type === 'MultiPolygon') {
+                        // Crear el objeto GeoJSON para el MultiPolygon
+                        console.log(data)
+                        var multiPolygon = {
+                            "type": "Feature",
+                            "geometry": data,
+                            "properties": {
+                                "strokeColor": "#AF7AC5",  // Color del borde del polígono
+                                "fillColor": "rgba(175, 122, 197, 0.5)"  // Color de relleno del polígono
+                            }
+                        };
+
+                        // Añadir el objeto GeoJSON a la fuente de datos.
+                        datasource.add(multiPolygon);
+
+                        // Añadir una capa para renderizar el MultiPolygon.
+                        map.layers.add(new atlas.layer.PolygonLayer(datasource, null, {
+                            filter: ['==', ['geometry-type'], 'Polygon'], // Renderizar solo los polígonos
+                            fillColor: ['get', 'fillColor'],  // Utilizar el color de relleno definido en las propiedades
+                            strokeColor: ['get', 'strokeColor'],  // Utilizar el color del borde definido en las propiedades
+                            strokeWidth: 2
+                        }));
+                    } else {
+                        console.error("Error: Datos de polígono no válidos");
+                    }
+                })
+                .catch(error => {
+                    console.error('Error al obtener los datos del polígono:', error);
+                });
+
+            // Coordenadas Inicio : Coordenadas final
+            var query = startPoint.geometry.coordinates[1] + "," +
+                startPoint.geometry.coordinates[0] + ":" +
+                endPoint.geometry.coordinates[1] + "," +
+                endPoint.geometry.coordinates[0];
+
+            // Llamado al query de la ruta
+            var selectElement = document.getElementById("transporte");
+
+            var travelMode = selectElement.value;
+
+            var url = `https://atlas.microsoft.com/route/directions/json?api-version=1.0&query=${query}&maxAlternatives=3&travelMode=${travelMode}`;
+
+            //Make a search route request
+            fetch(url, {
+                headers: {
+                    "Subscription-Key": map.authentication.getToken()
+                }
+            }).then((response) => response.json())
+                .then((response) => {
+                    // Itera sobre las tres primeras rutas alternativas.
+                    // Rutas alternativas
+                    for (let i = 0; i < 3; i++) {
+                        var route = response.routes[i];
+                        var routeCoordinates = [];
+
+                        // Obtener las coordenadas de cada punto de la ruta
+                        route.legs.forEach((leg) => {
+                            var legCoordinates = leg.points.map((point) => {
+                                return [point.longitude, point.latitude];
+                            });
+                            routeCoordinates = routeCoordinates.concat(legCoordinates);
+                        });
+                        // Añade cada ruta alternativa a la fuente de datos con un color diferente.
+                        // Juntar todos los puntos con una sola línea
+                        datasource.add(
+                            new atlas.data.Feature(new atlas.data.LineString(routeCoordinates), {
+                                strokeColor: "#2272B9",
+                                strokeWidth: 2
+                            }),
+                            0
+                        );
+                    }
+                });
+
+            // Puntos de crímen
+            // Add your crime points here.
+            var crimePoints = [
+                [42.00852, -87.66672, 'CONTRA LA PERSONA', 0.3076923076923077],
+                [42.00853, -87.6662, 'ROBOS', 0.5384615384615384],
+                [42.00794, -87.66618, 'CONTRA LA PERSONA', 0.3076923076923077],
+                [42.00796, -87.66598, 'ROBOS', 0.5384615384615384],
+                [42.00796, -87.66575, 'ROBOS', 0.5384615384615384],
+                [42.00796, -87.66527, 'ROBOS', 0.5384615384615384],
+                [42.00796, -87.66503, 'ROBOS', 0.6923076923076923],
+                [42.00796, -87.66469, 'ROBOS', 0.6923076923076923],
+            ]
+
+            // Iterate over the crime points and add them to the data source.
+            crimePoints.forEach(function (crimePoint) {
+                console.log(crimePoint[1], crimePoint[0])
+                var feature = new atlas.data.Feature(new atlas.data.Point([crimePoint[1], crimePoint[0]]), {
+                    title: crimePoint[2],
+                    probability: crimePoint[3],
+                    icon: "pin-round-red" // Icono para indicar puntos de interés
+                });
+                datasource.add([feature]);
+
+
+            });
+            // Add a layer for rendering point data with custom text template.
+            var symbolLayer = new atlas.layer.SymbolLayer(datasource, null, {
+                iconOptions: {
+                    image: ['get', 'icon'],
+                    allowOverlap: true
+                },
+                textOptions: {
+                    textField: ['get', 'title'],
+                    offset: [0, 1.2]
+                },
+                filter: ['any', ['==', ['geometry-type'], 'Point'], ['==', ['geometry-type'], 'MultiPoint']] //Only render Point or MultiPoints in this layer.
+            });
+
+            // Almacena una referencia al popup abierto.
+            var currentPopup;
+
+            // Add mouseover event to show probability when hovering over a point.
+            map.events.add('mouseover', symbolLayer, function (e) {
+                if (e && e.shapes && e.shapes.length > 0) {
+                    var properties = e.shapes[0].getProperties();
+                    var probability = properties.probability || 'No disponible';
+                    var content = '<div>Probabilidad: ' + probability + '</div>';
+
+                    // Crea un nuevo popup si no hay uno abierto actualmente.
+                    if (!currentPopup) {
+                        currentPopup = new atlas.Popup({
+                            position: e.shapes[0].getCoordinates(),
+                            pixelOffset: [0, -15]
+                        });
+                    }
+
+                    // Actualiza el contenido y abre el popup.
+                    currentPopup.setOptions({ content: content });
+                    currentPopup.open(map);
+                }
+            });
+
+            // Add mouseout event to close popup when mouse leaves a point.
+            map.events.add('mouseout', symbolLayer, function () {
+                // Cierra el popup actual si existe.
+                if (currentPopup) {
+                    currentPopup.close();
+                    currentPopup = null; // Elimina la referencia al popup cerrado.
+                }
+            });
+
+            map.layers.add(symbolLayer);
+
+            // Función para agregar tramos peligrosos a la capa de líneas.
+            function addDangerousSegments(dangerousSegments) {
+                // Itera sobre los tramos peligrosos.
+                dangerousSegments.forEach(function (segment) {
+                    // Crea un conjunto de coordenadas para el tramo peligroso.
+                    var coordinates = segment.map(function (point) {
+                        return [point[1], point[0]]; // Invierte latitud y longitud.
+                    });
+
+                    // Agrega el tramo peligroso a la fuente de datos como una línea.
+                    datasource.add(new atlas.data.Feature(new atlas.data.LineString(coordinates), {
+                        strokeColor: '#FF0000', // Color rojo para los tramos peligrosos.
+                        strokeWidth: 5
+                    }));
+                });
+            }
+
+            // Función para agrupar puntos con una probabilidad mayor a 0.7.
+            function groupCrimePointsByProbability(crimePoints) {
+                var groupedSegments = [];
+                var currentSegment = [];
+
+                // Itera sobre los puntos de crimen.
+                for (var i = 0; i < crimePoints.length; i++) {
+                    var currentPoint = crimePoints[i];
+
+                    // Comprueba si la probabilidad del crimen es mayor a 0.7.
+                    if (currentPoint[3] > 0.5) {
+                        // Agrega el punto actual al segmento actual.
+                        currentSegment.push([currentPoint[0], currentPoint[1]]);
+                    } else {
+                        // Si hay puntos en el segmento actual, agrégalo al conjunto de segmentos agrupados.
+                        if (currentSegment.length > 0) {
+                            groupedSegments.push(currentSegment);
+                            currentSegment = []; // Inicializa un nuevo segmento.
+                        }
+                    }
+                }
+
+                // Si hay puntos en el segmento actual, agrégalo al conjunto de segmentos agrupados.
+                if (currentSegment.length > 0) {
+                    groupedSegments.push(currentSegment);
+                }
+
+                return groupedSegments;
+            }
+
+            // Agrupa los puntos de crimen por probabilidad mayor a 0.7.
+            var groupedSegments = groupCrimePointsByProbability(crimePoints);
+
+            console.log(groupedSegments)
+            // Agrega los segmentos agrupados a la capa de datos.
+            addDangerousSegments(groupedSegments);
+
+        }
+    </script>
+
+
+    <style>
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+            overflow: hidden;
+            /* Evita que el formulario desplace el mapa */
+        }
+
+        #myMap {
+            width: 100%;
+            height: 100%;
+        }
+
+        #mapForm {
+            font-family: 'Jua', sans-serif;
+            /* Cambia la fuente del formulario */
+            position: absolute;
+            /* Posición absoluta con respecto al cuerpo */
+            top: 30px;
+            /* Distancia superior */
+            left: 30px;
+            /* Distancia izquierda */
+            padding: 10px;
+            /* Espaciado interno */
+            border-radius: 10px;
+            /* Bordes redondeados */
+            z-index: 1000;
+            /* Asegura que esté sobre el mapa */
+            background-color: rgba(106, 153, 78, 0.7);
+            /* Color de fondo transparente */
+            width: calc(15% - 20px);
+            /* Ancho del formulario */
+            letter-spacing: 3px;
+            font-size: 24px;
+        }
+
+        #mapForm label,
+        #mapForm input,
+        #mapForm select,
+        #mapForm button {
+            font-family: 'Jua', sans-serif;
+            display: block;
+            /* Mostrar elementos como bloques */
+            margin-bottom: 10px;
+            /* Espaciado inferior */
+            width: calc(100% - 18px);
+            /* Ancho completo */
+            padding: 8px;
+            /* Espaciado interno */
+            border: none;
+            /* Sin borde */
+            border-radius: 10px;
+            /* Bordes redondeados */
+            font-size: 18px;
+            /* Tamaño de fuente */
+            /* Fondo transparente */
+            color: black;
+            /* Color del texto */
+        }
+
+        #mapForm input,
+        select {
+            background-color: rgba(106, 153, 78, 0.8);
+        }
+
+        #mapForm select {
+            appearance: none;
+            /* Eliminar la apariencia predeterminada del select */
+        }
+
+        #mapForm button {
+            background-color: #6A994E;
+            /* Color de fondo del botón */
+            cursor: pointer;
+            /* Cambiar cursor al pasar sobre el botón */
+        }
+
+        #mapForm button:hover {
+            background-color: #547E3E;
+            /* Color de fondo del botón al pasar el ratón */
+        }
+
+        .ui-autocomplete {
+            max-height: 200px;
+            /* Ajusta la altura máxima de la lista de autocompletado según sea necesario */
+            z-index: 10000;
+            /* Asegura que la lista de autocompletado aparezca delante del formulario */
+            overflow-y: auto;
+            /* Agrega desplazamiento vertical si la lista excede la altura máxima */
+            overflow-x: hidden;
+            /* Oculta el desplazamiento horizontal */
+        }
+    </style>
+</head>
+
+<body onload="GetMap()">
+    <div id="myMap"></div>
+    <!-- Formulario para los inputs -->
+    <form id="mapForm">
+        <div class="ui-widget">
+            <label for="queryTbxInicio">Inicio: </label>
+            <input id="queryTbxInicio">
+        </div>
+        <div class="ui-widget">
+            <label for="queryTbxFin">Fin </label>
+            <input id="queryTbxFin">
+        </div>
+        <label for="transporte">Medio de transporte</label>
+        <select id="transporte" name="transporte">
+            <option value="pedestrian">Vía peatonal</option>
+            <option value="car">Carro</option>
+            <option value="motorcycle">Motocicleta</option>
+            <option value="bicycle">Bicicleta</option>
+        </select>
+        <button type="button" onclick="enviarFormulario()">Enviar</button>
+    </form>
+</body>
+
+</html>
