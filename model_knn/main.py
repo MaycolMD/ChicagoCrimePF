@@ -41,7 +41,41 @@ def get_crimes_for_route():
 
     print("Nuevas coordenadas:")
     print(new_coordenadas)
-    return {"new_coordinates": new_coordenadas}    
+    
+
+    crime_mapping = {
+        0: 'CONTRA EL SEXO',
+        1:'CONTRA LA PERSONA',
+        2: 'CRIMENES CONTRA MENORES Y VULNERABLES',
+        3: 'CRIMENES RELACIONADOS CON DROGAS Y NARCOTICOS',
+        4: 'OTROS CRIMENES MENORES Y VIOLACIONES DE LA LEY',
+        5: 'ROBOS'
+        }
+
+    info = []
+    try:
+        for c in new_coordenadas:
+            i = []
+            i.append(c[0][0])
+            i.append(c[0][1])
+            prediction = model.predict(c)
+            crimen = crime_mapping[prediction.item()]
+            i.append(crimen)
+
+            proba = model.predict_proba(c)
+            p = proba[0][prediction].item()
+            i.append(p)
+
+            info.append(i)
+
+        return {info}  
+    except Exception as e:
+        raise HTTPException(status_code=403, detail=f"Sufriendo: {e}")
+    
+
+      
+
+
 
 
 
