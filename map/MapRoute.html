@@ -35,7 +35,7 @@
                 // Replace <Your Azure Maps Key> with your Azure Maps subscription key. https://aka.ms/am-primaryKey
                 authOptions: {
                     authType: 'subscriptionKey',
-                    subscriptionKey: 'API KEY'
+                    subscriptionKey: ''
                 }
             });
 
@@ -145,7 +145,7 @@
                         // Update the input field with the full selected value
                         $(this).val(ui.item.address.freeformAddress);
 
-                        return false; 
+                        return false;
                     }
                 }).autocomplete("instance")._renderItem = function (ul, item) {
                     //Format the displayed suggestion to show the formatted suggestion string.
@@ -253,6 +253,41 @@
                 bounds: atlas.data.BoundingBox.fromData([startPoint, endPoint]),
                 padding: 150,
             });
+            // Query Ward
+            // Solicitar el MultiPolygon del Ward desde el endpoint Flask
+            var wardId = 2;  // Cambia esto según el Ward que desees obtener
+            fetch(`http://127.0.0.1:5000/get_ward_polygon?ward_id=${wardId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.type === 'MultiPolygon') {
+                        // Crear el objeto GeoJSON para el MultiPolygon
+                        console.log(data)
+                        var multiPolygon = {
+                            "type": "Feature",
+                            "geometry": data,
+                            "properties": {
+                                "strokeColor": "#AF7AC5",  // Color del borde del polígono
+                                "fillColor": "rgba(175, 122, 197, 0.5)"  // Color de relleno del polígono
+                            }
+                        };
+
+                        // Añadir el objeto GeoJSON a la fuente de datos.
+                        datasource.add(multiPolygon);
+
+                        // Añadir una capa para renderizar el MultiPolygon.
+                        map.layers.add(new atlas.layer.PolygonLayer(datasource, null, {
+                            filter: ['==', ['geometry-type'], 'Polygon'], // Renderizar solo los polígonos
+                            fillColor: ['get', 'fillColor'],  // Utilizar el color de relleno definido en las propiedades
+                            strokeColor: ['get', 'strokeColor'],  // Utilizar el color del borde definido en las propiedades
+                            strokeWidth: 2
+                        }));
+                    } else {
+                        console.error("Error: Datos de polígono no válidos");
+                    }
+                })
+                .catch(error => {
+                    console.error('Error al obtener los datos del polígono:', error);
+                });
 
             // Coordenadas Inicio : Coordenadas final
             var query = startPoint.geometry.coordinates[1] + "," +
@@ -262,7 +297,7 @@
 
             // Llamado al query de la ruta
             var selectElement = document.getElementById("transporte");
-            
+
             var travelMode = selectElement.value;
 
             var url = `https://atlas.microsoft.com/route/directions/json?api-version=1.0&query=${query}&maxAlternatives=3&travelMode=${travelMode}`;
@@ -292,7 +327,7 @@
                         datasource.add(
                             new atlas.data.Feature(new atlas.data.LineString(routeCoordinates), {
                                 strokeColor: "#2272B9",
-                                strokeWidth: 9
+                                strokeWidth: 2
                             }),
                             0
                         );
@@ -425,7 +460,6 @@
             console.log(groupedSegments)
             // Agrega los segmentos agrupados a la capa de datos.
             addDangerousSegments(groupedSegments);
-
 
         }
     </script>
