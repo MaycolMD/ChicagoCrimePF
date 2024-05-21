@@ -1,20 +1,34 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 import os
 import datetime
 from joblib import load
 import numpy as np
+from pydantic import BaseModel
 
 
 app = FastAPI()
 
+# Permite solicitudes CORS desde todos los dominios
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-@app.get("/crimes_for_route")
-def get_crimes_for_route():
+# Define el modelo de datos esperado en la solicitud POST
+class CrimeData(BaseModel):
+    crimePoints: list[list]
 
+@app.post("/crimes_for_route")
+def get_crimes_for_route(crime_data: CrimeData):
+    print(crime_data)
     date =  datetime.datetime.now()
     day_week = date.weekday()
 
-    path = f".\models\model_knn_dayWeek{day_week+1}.pkl"
+    path = f"./models/model_knn_dayWeek{day_week+1}.pkl"
     print(path)
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Model file not found")
@@ -25,12 +39,9 @@ def get_crimes_for_route():
         raise HTTPException(status_code=500, detail=f"Error loading model: {e}")
     
     coordenadas = []
-    archivo_txt = "coordenadas.txt"
-    with open(archivo_txt, 'r') as archivo:
-        lineas = archivo.readlines()
-        for linea in lineas:
-            latitud, longitud = map(float, linea.strip().split(','))
-            coordenadas.append((latitud, longitud))
+    # Extrae los datos del modelo
+    coordenadas = crime_data.crimePoints
+    print(coordenadas)
 
     print("Coordenadas originales:")
     print(coordenadas)
@@ -68,7 +79,7 @@ def get_crimes_for_route():
 
             info.append(i)
 
-        return {info}  
+        return {"info": info} 
     except Exception as e:
         raise HTTPException(status_code=403, detail=f"Sufriendo: {e}")
     

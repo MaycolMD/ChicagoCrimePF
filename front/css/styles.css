@@ -1,0 +1,138 @@
+html,
+body {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    /* Evita que el formulario desplace el mapa */
+}
+
+#myMap {
+    width: 100%;
+    height: 100%;
+}
+
+#mapForm {
+    font-family: 'Jua', sans-serif;
+    /* Cambia la fuente del formulario */
+    position: absolute;
+    /* Posición absoluta con respecto al cuerpo */
+    top: 110px;
+    /* Distancia superior */
+    left: 30px;
+    /* Distancia izquierda */
+    padding: 10px;
+    /* Espaciado interno */
+    border-radius: 10px;
+    /* Bordes redondeados */
+    z-index: 1000;
+    /* Asegura que esté sobre el mapa */
+    background-color: rgba(106, 153, 78, 0.7);
+    /* Color de fondo transparente */
+    width: calc(15% - 20px);
+    /* Ancho del formulario */
+    letter-spacing: 3px;
+    font-size: 24px;
+}
+
+#mapForm label,
+#mapForm input,
+#mapForm select,
+#mapForm button {
+    font-family: 'Jua', sans-serif;
+    display: block;
+    /* Mostrar elementos como bloques */
+    margin-bottom: 10px;
+    /* Espaciado inferior */
+    width: calc(100% - 18px);
+    /* Ancho completo */
+    padding: 8px;
+    /* Espaciado interno */
+    border: none;
+    /* Sin borde */
+    border-radius: 10px;
+    /* Bordes redondeados */
+    font-size: 18px;
+    /* Tamaño de fuente */
+    /* Fondo transparente */
+    color: black;
+    /* Color del texto */
+}
+
+#mapForm input,
+select {
+    background-color: rgba(106, 153, 78, 0.8);
+}
+
+#mapForm select {
+    appearance: none;
+    /* Eliminar la apariencia predeterminada del select */
+}
+
+#mapForm button {
+    background-color: #6A994E;
+    /* Color de fondo del botón */
+    cursor: pointer;
+    /* Cambiar cursor al pasar sobre el botón */
+}
+
+#mapForm button:hover {
+    background-color: #547E3E;
+    /* Color de fondo del botón al pasar el ratón */
+}
+
+.ui-autocomplete {
+    max-height: 200px;
+    /* Ajusta la altura máxima de la lista de autocompletado según sea necesario */
+    z-index: 10000;
+    /* Asegura que la lista de autocompletado aparezca delante del formulario */
+    overflow-y: auto;
+    /* Agrega desplazamiento vertical si la lista excede la altura máxima */
+    overflow-x: hidden;
+    /* Oculta el desplazamiento horizontal */
+}
+
+.navbar {
+    background-color: rgba(56, 102, 65, 0.85);
+    padding: 6px;
+}
+
+.navbar .container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.navbar .flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.navbar .logo-link {
+    text-decoration: none;
+    color: white;
+    font-family: 'Jua', sans-serif;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+}
+
+.navbar .logo-img {
+    margin-right: 20px;
+}
+
+.navbar .menu-links {
+    display: flex;
+}
+
+.navbar .nav-link {
+    text-decoration: none;
+    color: white;
+    font-size: 18px;
+    margin-right: 20px; /* Ajusta el espacio entre los elementos del menú */
+}
+
+.navbar .nav-link:hover {
+    color: #ccc; /* Cambia el color del texto al pasar el ratón */
+}
