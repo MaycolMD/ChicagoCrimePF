@@ -234,89 +234,110 @@ function enviarFormulario() {
         bounds: atlas.data.BoundingBox.fromData([startPoint, endPoint]),
         padding: 150,
     });
-    // Query Ward
+
+    // Query Beat
     // Solicitar el MultiPolygon del Ward desde el endpoint Flask
-    var wards = [['0111', 0.8],
-    ['0112', 0.9],
-    ['0113', 0.8]];  // Cambia esto según el Ward que desees obtener
+    // Realiza la solicitud HTTP POST al endpoint del servidor
+    var data = {
+        crimePoints: routeCoordinates
+    };
 
-    console.log(wards)
-    //Create a popup but leave it closed so we can update it and display it later.
-    popup = new atlas.Popup({
-        position: [0, 0]
-    });
+    fetch('http://localhost:8000/prob_crime_in_route', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Success:', data);
+            // Puntos de crímen
+            // Add your crime points here.
+            var beats = data.info
 
-    function getRandomPastelColor() {
-        var alpha = 0.5;
-        var pastelColors = [
-            "rgba(119, 221, 119, " + alpha + ")", // Pastel Green
-            "rgba(255, 105, 97, " + alpha + ")",  // Pastel Red
-            "rgba(174, 198, 207, " + alpha + ")", // Pastel Blue
-            "rgba(255, 179, 71, " + alpha + ")",  // Pastel Orange
-            "rgba(253, 253, 150, " + alpha + ")"  // Pastel Yellow
-            // Puedes agregar más colores pastel según sea necesario
-        ];
-        var randomIndex = Math.floor(Math.random() * pastelColors.length);
-        return pastelColors[randomIndex];
-    }
+            //Create a popup but leave it closed so we can update it and display it later.
+            popup = new atlas.Popup({
+                position: [0, 0]
+            });
 
-    wards.forEach(function (wardId) {
-        fetch(`http://127.0.0.1:5000/get_beat_polygon?beat_id=${wardId[0]}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.type === 'MultiPolygon') {
-                    // Crear el objeto GeoJSON para el MultiPolygon
-                    var multiPolygon = {
-                        "type": "Feature",
-                        "geometry": data,
-                        "properties": {
-                            "strokeColor": getRandomPastelColor(),  // Color del borde del polígono
-                            "fillColor": getRandomPastelColor(), // Color de relleno del polígono
-                            "ward": wardId[0],
-                            "probability": wardId[1]
-                        }
-                    };
+            function getRandomPastelColor() {
+                var alpha = 0.5;
+                var pastelColors = [
+                    "rgba(119, 221, 119, " + alpha + ")", // Pastel Green
+                    "rgba(255, 105, 97, " + alpha + ")",  // Pastel Red
+                    "rgba(174, 198, 207, " + alpha + ")", // Pastel Blue
+                    "rgba(255, 179, 71, " + alpha + ")",  // Pastel Orange
+                    "rgba(253, 253, 150, " + alpha + ")"  // Pastel Yellow
+                    // Puedes agregar más colores pastel según sea necesario
+                ];
+                var randomIndex = Math.floor(Math.random() * pastelColors.length);
+                return pastelColors[randomIndex];
+            }
 
-                    // Añadir el objeto GeoJSON a la fuente de datos.
-                    datasource.add(multiPolygon);
+            beats.forEach(function (beatId) {
+                fetch(`http://127.0.0.1:5000/get_beat_polygon?beat_id=${beatId[0]}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.type === 'MultiPolygon') {
+                            // Crear el objeto GeoJSON para el MultiPolygon
+                            var multiPolygon = {
+                                "type": "Feature",
+                                "geometry": data,
+                                "properties": {
+                                    "strokeColor": getRandomPastelColor(),  // Color del borde del polígono
+                                    "fillColor": getRandomPastelColor(), // Color de relleno del polígono
+                                    "beat": beatId[0],
+                                    "probability": beatId[1]
+                                }
+                            };
 
-                    var polygonLayer = new atlas.layer.PolygonLayer(datasource, null, {
-                        filter: ['==', ['geometry-type'], 'Polygon'], // Renderizar solo los polígonos
-                        fillColor: ['get', 'fillColor'],  // Utilizar el color de relleno definido en las propiedades
-                        strokeColor: ['get', 'strokeColor'],  // Utilizar el color del borde definido en las propiedades
-                        strokeWidth: 2
-                    })
-                    // Añadir una capa para renderizar el MultiPolygon.
-                    map.layers.add(polygonLayer);
+                            // Añadir el objeto GeoJSON a la fuente de datos.
+                            datasource.add(multiPolygon);
 
-                    //Add a mouse move event to the polygon layer to show a popup with information.
-                    map.events.add('mousemove', polygonLayer, function (e) {
-                        if (e.shapes && e.shapes.length > 0) {
-                            var properties = e.shapes[0].getProperties();
+                            var polygonLayer = new atlas.layer.PolygonLayer(datasource, null, {
+                                filter: ['==', ['geometry-type'], 'Polygon'], // Renderizar solo los polígonos
+                                fillColor: ['get', 'fillColor'],  // Utilizar el color de relleno definido en las propiedades
+                                strokeColor: ['get', 'strokeColor'],  // Utilizar el color del borde definido en las propiedades
+                                strokeWidth: 2
+                            })
+                            // Añadir una capa para renderizar el MultiPolygon.
+                            map.layers.add(polygonLayer);
 
-                            //Update the content of the popup.
-                            popup.setOptions({
-                                content: '<div style="padding:10px"><b> Beat: ' + properties.ward + '</b><br/>Probabilidad de crimen: ' + (properties.probability * 100).toFixed(2) + ' %</div>',
-                                position: e.position
+                            //Add a mouse move event to the polygon layer to show a popup with information.
+                            map.events.add('mousemove', polygonLayer, function (e) {
+                                if (e.shapes && e.shapes.length > 0) {
+                                    var properties = e.shapes[0].getProperties();
+
+                                    //Update the content of the popup.
+                                    popup.setOptions({
+                                        content: '<div style="padding:10px"><b> Beat: ' + properties.beat + '</b><br/>Probabilidad de crimen: ' + (properties.probability * 100).toFixed(2) + ' %</div>',
+                                        position: e.position
+                                    });
+
+                                    //Open the popup.
+                                    popup.open(map);
+                                }
                             });
 
-                            //Open the popup.
-                            popup.open(map);
+                            //Add a mouse leave event to the polygon layer to hide the popup.
+                            map.events.add('mouseleave', polygonLayer, function (e) {
+                                popup.close();
+                            });
+                        } else {
+                            console.error("Error: Datos de polígono no válidos");
                         }
+                    })
+                    .catch(error => {
+                        console.error('Error al obtener los datos del polígono:', error);
                     });
-
-                    //Add a mouse leave event to the polygon layer to hide the popup.
-                    map.events.add('mouseleave', polygonLayer, function (e) {
-                        popup.close();
-                    });
-                } else {
-                    console.error("Error: Datos de polígono no válidos");
-                }
             })
-            .catch(error => {
-                console.error('Error al obtener los datos del polígono:', error);
-            });
-    })
+
+
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
 
     // Coordenadas Inicio : Coordenadas final
     var query = startPoint.geometry.coordinates[1] + "," +
@@ -480,7 +501,7 @@ function enviarFormulario() {
                             for (var i = 0; i < crimePoints.length; i++) {
 
                                 var currentPoint = crimePoints[i];
-                                
+
                                 acumProb.push(currentPoint[3]);
 
                                 // Comprueba si la probabilidad del crimen es mayor a 0.7.
@@ -534,9 +555,9 @@ function enviarFormulario() {
                                 var properties = e.shapes[0].getProperties();
 
                                 //Update the content of the popup.
-                                console.log('featureprop '+ properties.probability)
+                                console.log('featureprop ' + properties.probability)
                                 LinePopup.setOptions({
-                                    content: '<div style="padding:10px"><b> Ruta: ' + properties.ruta + '</b><br/>Seguridad de la ruta: ' + (100 - (probs[properties.ruta-1] * 100)).toFixed(2) + ' %</div>',
+                                    content: '<div style="padding:10px"><b> Ruta: ' + properties.ruta + '</b><br/>Seguridad de la ruta: ' + (100 - (probs[properties.ruta - 1] * 100)).toFixed(2) + ' %</div>',
                                     position: e.position
                                 });
 
