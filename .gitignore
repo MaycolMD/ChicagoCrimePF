@@ -1,3 +1,7 @@
 model_knn/key.json
 map/.env
 venv/
+
+nextjs-azure-maps/
+
+__pycache__/

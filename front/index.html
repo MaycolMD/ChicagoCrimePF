@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <title>Map Route</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Add references to the Azure Maps Map control JavaScript and CSS files. -->
+    <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.css" type="text/css">
+    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+    <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.js"></script>
+
+    <!-- Load JQuery UI -->
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css">
+
+    <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+
+    <!-- Add a reference to the Azure Maps Rest Helper JavaScript file. -->
+    <script src="https://samples.azuremaps.com/lib/azure-maps/azure-maps-helper.min.js"></script>
+
+    <script src="./js/map.js"></script>
+    <link rel="stylesheet" href="./css/styles.css">
+</head>
+
+<body onload="GetMap()">
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="container mx-auto">
+            <div class="flex items-center justify-between">
+                <div>
+                    <a href="/" class="logo-link">
+                        <img src="./static/logo.png" alt="Page logo" width="64" height="64" class="logo-img">
+                        <span class="text-3xl ml-2 pt-4">Chicago Maps</span>
+                    </a>
+                </div>
+                <div class="flex space-x-4">
+                    <div class="space-x-12">
+                        <a href="/" class="nav-link">Home</a>
+                        <a href="/querybuilder" class="nav-link">Relevant info</a>
+                        <a href="/queryhub" class="nav-link">About us</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div id="myMap"></div>
+    <!-- Formulario para los inputs -->
+    <form id="mapForm">
+        <div class="ui-widget">
+            <label for="queryTbxInicio">Inicio </label>
+            <input id="queryTbxInicio">
+        </div>
+        <div class="ui-widget">
+            <label for="queryTbxFin">Fin </label>
+            <input id="queryTbxFin">
+        </div>
+        <label for="transporte">Medio de transporte</label>
+        <select id="transporte" name="transporte">
+            <option value="pedestrian">Vía peatonal</option>
+            <option value="car">Carro</option>
+            <option value="motorcycle">Motocicleta</option>
+            <option value="bicycle">Bicicleta</option>
+        </select>
+        <button type="button" onclick="enviarFormulario()">Enviar</button>
+    </form>
+</body>
+
+</html>
