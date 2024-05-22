@@ -83,6 +83,7 @@ def get_prob_for_beats(crime_data: CrimeData):
             p = proba[0][prediction].item()
             info.append([Beat,crimen,p])
         print(info)
+        return {"info": info} 
     except Exception as e:
         raise HTTPException(status_code=403, detail=f"Sufriendo: {e}")
     
