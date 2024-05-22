@@ -236,9 +236,9 @@ function enviarFormulario() {
     });
     // Query Ward
     // Solicitar el MultiPolygon del Ward desde el endpoint Flask
-    var wards = [[1, 0.8],
-    [2, 0.9],
-    [3, 0.8]];  // Cambia esto según el Ward que desees obtener
+    var wards = [['0111', 0.8],
+    ['0112', 0.9],
+    ['0113', 0.8]];  // Cambia esto según el Ward que desees obtener
 
     console.log(wards)
     //Create a popup but leave it closed so we can update it and display it later.
@@ -261,7 +261,7 @@ function enviarFormulario() {
     }
 
     wards.forEach(function (wardId) {
-        fetch(`http://127.0.0.1:5000/get_ward_polygon?ward_id=${wardId[0]}`)
+        fetch(`http://127.0.0.1:5000/get_beat_polygon?beat_id=${wardId[0]}`)
             .then(response => response.json())
             .then(data => {
                 if (data.type === 'MultiPolygon') {
