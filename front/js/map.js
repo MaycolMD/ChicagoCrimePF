@@ -296,7 +296,7 @@ function enviarFormulario() {
 
                             //Update the content of the popup.
                             popup.setOptions({
-                                content: '<div style="padding:10px"><b> Ward: ' + properties.ward + '</b><br/>Probabilidad de crimen: ' + (properties.probability * 100).toFixed(2) + ' %</div>',
+                                content: '<div style="padding:10px"><b> Beat: ' + properties.ward + '</b><br/>Probabilidad de crimen: ' + (properties.probability * 100).toFixed(2) + ' %</div>',
                                 position: e.position
                             });
 
