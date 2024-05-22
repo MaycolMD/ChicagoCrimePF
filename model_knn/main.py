@@ -22,9 +22,12 @@ app.add_middleware(
 class CrimeData(BaseModel):
     crimePoints: list[list]
 
+class CrimePoint(BaseModel):
+    lat: float
+    long: float
+
 @app.post("/crimes_for_point")
-def get_crimes_for_point(crime_point: CrimeData):
-    print(crime_point)
+def get_crimes_for_point(point: CrimePoint):
     date =  datetime.datetime.now()
     day_week = date.weekday()
     time = date.hour
@@ -46,62 +49,51 @@ def get_crimes_for_point(crime_point: CrimeData):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading model: {e}")
     
-    coordenada = []
-    # Extrae los datos del modelo
-    coordenada = crime_point.crimePoints
-    print(coordenada)
+    coord = np.array([point.lat, point.long]).reshape(1, -1)
 
-    print("Coordenada original:")
-    print(coordenada)
-
-    c = np.array([coordenada[0][1], coordenada[0][0]]).reshape(1, -1)
-
-    print("Nueva coordenada:")
-    print(c)
-    
     neighbors = []
+    try:
+        distances, indices = model.kneighbors(coord)
+
+        delta_lat = distances[0] / 111
+        delta_long = distances[0] / (111 * np.cos(np.radians(coord[0][0])))
+
+        lats = coord[0][0] + delta_lat
+        longs = coord[0][1] + delta_long
+
+        for i in range(len(distances[0])):
+            neighbors.append(np.array([lats[i], longs[i]]).reshape(1,-1))
+
+        crime_mapping = {
+        0: 'CONTRA EL SEXO',
+        1:'CONTRA LA PERSONA',
+        2: 'CRIMENES CONTRA MENORES Y VULNERABLES',
+        3: 'CRIMENES RELACIONADOS CON DROGAS Y NARCOTICOS',
+        4: 'OTROS CRIMENES MENORES Y VIOLACIONES DE LA LEY',
+        5: 'ROBOS'
+        }
+
+        info = []
     
-    distances, indices = model.kneighbors(c)
+        for n in neighbors:
+            i = []
+            i.append(n[0][0])
+            i.append(n[0][1])
+            prediction = model.predict(n)
+            crimen = crime_mapping[prediction.item()]
+            i.append(crimen)
 
-    delta_lat = distances[0] / 111
-    print(delta_lat)
-    delta_long = distances[0] / (111 * np.cos(np.radians(c[0][0])))
-    print(delta_long)
-    lats = c[0][0] + delta_lat
-    longs = c[0][1] + delta_long
-    print('llega')
+            proba = model.predict_proba(n)
+            print(proba)
+            p = proba[0][prediction].item()
+            i.append(p)
 
-    for i in range(len(distances[0])):
-        neighbors.append(np.array([lats[i], longs[i]]))
-    print('llega2')
-    crime_mapping = {
-    0: 'CONTRA EL SEXO',
-    1:'CONTRA LA PERSONA',
-    2: 'CRIMENES CONTRA MENORES Y VULNERABLES',
-    3: 'CRIMENES RELACIONADOS CON DROGAS Y NARCOTICOS',
-    4: 'OTROS CRIMENES MENORES Y VIOLACIONES DE LA LEY',
-    5: 'ROBOS'
-    }
+            info.append(i)
 
-    info = []
+        return {"neighbors": info}
 
-    for n in neighbors:
-        i = []
-        print(n[0])
-
-        n = np.array(n).reshape(1,-1)
-
-        i.append(n[0][0])
-        i.append(n[0][1])
-        prediction = model.predict(n)
-        crimen = crime_mapping[prediction.item()]
-        i.append(crimen)
-
-        proba = model.predict_proba(n)
-        p = proba[0][prediction].item()
-        i.append(p)
-
-        info.append(i)
+    except Exception as e:
+        raise HTTPException(status_code=403, detail=f"Sufriendo: {e}")
 
 @app.post("/crimes_for_route")
 def get_crimes_for_route(crime_data: CrimeData):

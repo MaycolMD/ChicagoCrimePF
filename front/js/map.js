@@ -104,8 +104,6 @@ function GetMap() {
                     probability: 0,
                 });
 
-                console.log(ui.item)
-
                 if (endPoint) {
                     datasource.add(endPoint);
                 }
@@ -146,7 +144,6 @@ function GetMap() {
 
                 var countryIso = 'US';
 
-                console.log(encodeURIComponent(request.term))
                 //Create a URL to the Azure Maps search service to perform the search.
                 var requestUrl = geocodeServiceUrlTemplate.replace('{query}', encodeURIComponent(request.term))
                     .replace('{searchType}', 'poi')
@@ -209,18 +206,9 @@ function GetMap() {
 
 
 function enviarFormulario() {
-    // Aquí puedes obtener los valores del formulario y realizar las acciones necesarias.
-    var inicio = document.getElementById("queryTbxInicio").value;
-    var fin = document.getElementById("queryTbxFin").value;
-    var transporte = document.getElementById("transporte").value;
-    console.log("Inicio:", inicio);
-    console.log("Fin:", fin);
-    console.log("Transporte:", transporte);
 
     // Punto inicial A
     //Create the GeoJSON objects which represent the start and end points of the route.
-
-    console.log(endPoint)
 
 
     datasource.clear();
@@ -238,106 +226,6 @@ function enviarFormulario() {
     // Query Beat
     // Solicitar el MultiPolygon del Ward desde el endpoint Flask
     // Realiza la solicitud HTTP POST al endpoint del servidor
-    var data = {
-        crimePoints: routeCoordinates
-    };
-
-    fetch('http://localhost:8000/prob_crime_in_route', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-    })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Success:', data);
-            // Puntos de crímen
-            // Add your crime points here.
-            var beats = data.info
-
-            //Create a popup but leave it closed so we can update it and display it later.
-            popup = new atlas.Popup({
-                position: [0, 0]
-            });
-
-            function getRandomPastelColor() {
-                var alpha = 0.5;
-                var pastelColors = [
-                    "rgba(119, 221, 119, " + alpha + ")", // Pastel Green
-                    "rgba(255, 105, 97, " + alpha + ")",  // Pastel Red
-                    "rgba(174, 198, 207, " + alpha + ")", // Pastel Blue
-                    "rgba(255, 179, 71, " + alpha + ")",  // Pastel Orange
-                    "rgba(253, 253, 150, " + alpha + ")"  // Pastel Yellow
-                    // Puedes agregar más colores pastel según sea necesario
-                ];
-                var randomIndex = Math.floor(Math.random() * pastelColors.length);
-                return pastelColors[randomIndex];
-            }
-
-            beats.forEach(function (beatId) {
-                fetch(`http://127.0.0.1:5000/get_beat_polygon?beat_id=${beatId[0]}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.type === 'MultiPolygon') {
-                            // Crear el objeto GeoJSON para el MultiPolygon
-                            var multiPolygon = {
-                                "type": "Feature",
-                                "geometry": data,
-                                "properties": {
-                                    "strokeColor": getRandomPastelColor(),  // Color del borde del polígono
-                                    "fillColor": getRandomPastelColor(), // Color de relleno del polígono
-                                    "beat": beatId[0],
-                                    "probability": beatId[1]
-                                }
-                            };
-
-                            // Añadir el objeto GeoJSON a la fuente de datos.
-                            datasource.add(multiPolygon);
-
-                            var polygonLayer = new atlas.layer.PolygonLayer(datasource, null, {
-                                filter: ['==', ['geometry-type'], 'Polygon'], // Renderizar solo los polígonos
-                                fillColor: ['get', 'fillColor'],  // Utilizar el color de relleno definido en las propiedades
-                                strokeColor: ['get', 'strokeColor'],  // Utilizar el color del borde definido en las propiedades
-                                strokeWidth: 2
-                            })
-                            // Añadir una capa para renderizar el MultiPolygon.
-                            map.layers.add(polygonLayer);
-
-                            //Add a mouse move event to the polygon layer to show a popup with information.
-                            map.events.add('mousemove', polygonLayer, function (e) {
-                                if (e.shapes && e.shapes.length > 0) {
-                                    var properties = e.shapes[0].getProperties();
-
-                                    //Update the content of the popup.
-                                    popup.setOptions({
-                                        content: '<div style="padding:10px"><b> Beat: ' + properties.beat + '</b><br/>Probabilidad de crimen: ' + (properties.probability * 100).toFixed(2) + ' %</div>',
-                                        position: e.position
-                                    });
-
-                                    //Open the popup.
-                                    popup.open(map);
-                                }
-                            });
-
-                            //Add a mouse leave event to the polygon layer to hide the popup.
-                            map.events.add('mouseleave', polygonLayer, function (e) {
-                                popup.close();
-                            });
-                        } else {
-                            console.error("Error: Datos de polígono no válidos");
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error al obtener los datos del polígono:', error);
-                    });
-            })
-
-
-        })
-        .catch((error) => {
-            console.error('Error:', error);
-        });
 
     // Coordenadas Inicio : Coordenadas final
     var query = startPoint.geometry.coordinates[1] + "," +
@@ -361,6 +249,8 @@ function enviarFormulario() {
         .then((response) => {
             // Itera sobre las tres primeras rutas alternativas.
             // Rutas alternativas
+            
+            var beatsDibujados = []
             for (let i = 0; i < 3; i++) {
                 var route = response.routes[i];
                 var routeCoordinates = [];
@@ -391,7 +281,7 @@ function enviarFormulario() {
                     crimePoints: routeCoordinates
                 };
 
-                fetch('http://localhost:8000/crimes_for_route', {
+                fetch('http://localhost:8001/crimes_for_route', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -400,7 +290,6 @@ function enviarFormulario() {
                 })
                     .then(response => response.json())
                     .then(data => {
-                        console.log('Success:', data);
                         // Puntos de crímen
                         // Add your crime points here.
                         var crimePoints = data.info
@@ -408,7 +297,6 @@ function enviarFormulario() {
                         // Iterate over the crime points and add them to the data source.
                         crimePoints.forEach(function (crimePoint) {
                             if (crimePoint[3] > 0.7) {
-                                console.log(crimePoint[1], crimePoint[0])
                                 var feature = new atlas.data.Feature(new atlas.data.Point([crimePoint[1], crimePoint[0]]), {
                                     title: crimePoint[2],
                                     probability: crimePoint[3],
@@ -531,7 +419,6 @@ function enviarFormulario() {
                         var promProb = calcularPromedio(acumProb);
                         probs.push(promProb)
 
-                        console.log(groupedSegments)
                         // Agrega los segmentos agrupados a la capa de datos.
                         addDangerousSegments(groupedSegments);
 
@@ -555,7 +442,6 @@ function enviarFormulario() {
                                 var properties = e.shapes[0].getProperties();
 
                                 //Update the content of the popup.
-                                console.log('featureprop ' + properties.probability)
                                 LinePopup.setOptions({
                                     content: '<div style="padding:10px"><b> Ruta: ' + properties.ruta + '</b><br/>Seguridad de la ruta: ' + (100 - (probs[properties.ruta - 1] * 100)).toFixed(2) + ' %</div>',
                                     position: e.position
@@ -575,6 +461,140 @@ function enviarFormulario() {
                     .catch((error) => {
                         console.error('Error:', error);
                     });
+
+                // Recorre la lista original y selecciona cada décimo elemento
+                if (true) {
+                    dataRecortada = []
+
+                    for (var j = 0; j < routeCoordinates.length; j += 10) {
+                        dataRecortada.push(routeCoordinates[j]);
+                    }
+
+                    var data = {
+                        crimePoints: dataRecortada
+                    };
+
+                    console.log(data)
+
+                    fetch('http://localhost:8002/prob_crime_in_route', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            // Puntos de crímen
+                            // Add your crime points here.
+                            var beats = data.info
+
+                            console.log(data.info)
+
+                            //Create a popup but leave it closed so we can update it and display it later.
+                            popup = new atlas.Popup({
+                                position: [0, 0]
+                            });
+
+                            function getRandomPastelColor() {
+                                var alpha = 0.05;
+                                var pastelColors = [
+                                    "rgba(119, 221, 119, " + alpha + ")", // Pastel Green
+                                    "rgba(255, 105, 97, " + alpha + ")",  // Pastel Red
+                                    "rgba(174, 198, 207, " + alpha + ")", // Pastel Blue
+                                    "rgba(255, 179, 71, " + alpha + ")",  // Pastel Orange
+                                    "rgba(253, 253, 150, " + alpha + ")"  // Pastel Yellow
+                                    // Puedes agregar más colores pastel según sea necesario
+                                ];
+                                var randomIndex = Math.floor(Math.random() * pastelColors.length);
+                                return pastelColors[randomIndex];
+                            }
+
+                            beats.forEach(function (beatId) {
+                                fetch(`http://127.0.0.1:5000/get_beat_polygon?beat_id=${beatId[0]}`)
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (data.type === 'MultiPolygon') {
+                                            // Crear el objeto GeoJSON para el MultiPolygon
+                                            
+
+                                            var esta = true
+                                            console.log(beatId[0])
+                                            console.log(beatsDibujados)
+                                            beatsDibujados.forEach(element => {
+                                                if(element == beatId[0] ){
+                                                    esta = false
+                                                }
+                                            });
+                                            console.log(esta)
+                                            if (esta) {
+                                                var multiPolygon = {
+                                                    "type": "Feature",
+                                                    "geometry": data,
+                                                    "properties": {
+                                                        "strokeColor": getRandomPastelColor(),  // Color del borde del polígono
+                                                        "fillColor": getRandomPastelColor(), // Color de relleno del polígono
+                                                        "beat": beatId[0],
+                                                        "probability": beatId[2],
+                                                        "title": beatId[1]
+                                                    }
+                                                };
+
+                                                // Añadir el objeto GeoJSON a la fuente de datos.
+                                                datasource.add(multiPolygon);
+
+
+                                                var polygonLayer = new atlas.layer.PolygonLayer(datasource, null, {
+                                                    filter: ['==', ['geometry-type'], 'Polygon'], // Renderizar solo los polígonos
+                                                    fillColor: ['get', 'fillColor'],  // Utilizar el color de relleno definido en las propiedades
+                                                    strokeColor: ['get', 'strokeColor'],  // Utilizar el color del borde definido en las propiedades
+                                                    strokeWidth: 2
+                                                })
+                                                // Añadir una capa para renderizar el MultiPolygon.
+                                                map.layers.add(polygonLayer);
+
+                                                //Add a mouse move event to the polygon layer to show a popup with information.
+                                                map.events.add('mousemove', polygonLayer, function (e) {
+                                                    if (e.shapes && e.shapes.length > 0) {
+                                                        var properties = e.shapes[0].getProperties();
+
+                                                        //Update the content of the popup.
+                                                        popup.setOptions({
+                                                            content: '<div style="padding:10px"><b> Beat: ' + properties.beat + '</b><br/><b> Crimen: ' + properties.title + '</b><br/>Probabilidad de crimen: ' + (properties.probability * 100).toFixed(2) + ' %</div>',
+                                                            position: e.position
+                                                        });
+
+                                                        //Open the popup.
+                                                        popup.open(map);
+                                                    }
+                                                });
+
+                                                //Add a mouse leave event to the polygon layer to hide the popup.
+                                                map.events.add('mouseleave', polygonLayer, function (e) {
+                                                    popup.close();
+                                                });
+
+                                                beatsDibujados.push(beatId[0])
+                                            }
+
+
+                                        } else {
+                                            console.error("Error: Datos de polígono no válidos");
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error('Error al obtener los datos del polígono:', error);
+                                    });
+                            })
+
+
+                        })
+                        .catch((error) => {
+                            console.error('Error:', error);
+                        });
+
+                }
+
             }
         });
 

@@ -4,11 +4,9 @@ from joblib import load
 import datetime
 import numpy as np
 from pydantic import BaseModel
-import requests
+import requests, json
 
 app = FastAPI()
-
-
 
 # Permite solicitudes CORS desde todos los dominios
 app.add_middleware(
@@ -33,7 +31,7 @@ def load_model():
 
 @app.post("/prob_crime_in_route")
 def get_prob_for_beats(crime_data: CrimeData):
-    print(crime_data)
+
     date =  datetime.datetime.now()
     day_week = date.weekday() + 1
     time_category = date.hour//4 + 1
@@ -45,15 +43,10 @@ def get_prob_for_beats(crime_data: CrimeData):
     # Extrae los datos del modelo
     coordenadas = crime_data.crimePoints
 
-    print("Coordenadas originales:")
-    print(coordenadas)
     new_coordenadas = []
     for coordenada in coordenadas:
         c = np.array([coordenada[0], coordenada[1]]).reshape(1, -1)
         new_coordenadas.append(c)
-    print("Nuevas coordenadas:")
-    print(new_coordenadas)
-
 
     crime_mapping = {
         0: 'CONTRA EL SEXO',
@@ -68,13 +61,14 @@ def get_prob_for_beats(crime_data: CrimeData):
     beats = []
     info = []
     try:
+        
         for cords in coordenadas:
-            print(cords)
-            beat_temporal = requests.post('http://localhost:5000/get_beat_location', json={"beat_locations":[cords]})
+            beat_temporal = requests.post('http://localhost:5000/get_beat_location', json={"longitud":cords[0], "latitud":cords[1]})
             beat_temporal_json = beat_temporal.json()
             if(beat_temporal_json['BEAT_NUM'] not in beats):
-                beats.append(beat_temporal_json['BEAT_NUM'])
-        print(beats)
+                if(beat_temporal_json['BEAT_NUM'] != 'No se encontró área'):
+                    beats.append(beat_temporal_json['BEAT_NUM'])
+
         for Beat in beats:
             entradas = np.array([Beat,day_week,time_category]).reshape(1,-1)
             prediction = modelo.predict(entradas)
@@ -82,7 +76,7 @@ def get_prob_for_beats(crime_data: CrimeData):
             proba = modelo.predict_proba(entradas)
             p = proba[0][prediction].item()
             info.append([Beat,crimen,p])
-        print(info)
+
         return {"info": info} 
     except Exception as e:
         raise HTTPException(status_code=403, detail=f"Sufriendo: {e}")

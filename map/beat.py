@@ -47,16 +47,8 @@ def get_ward_polygon():
 def get_beat_location():
     data = request.get_json()
 
-    # Verifica si 'beat_locations' está en los datos JSON
-    if 'beat_locations' not in data:
-        return jsonify({'error': 'El parámetro beat_locations es requerido.'}), 400
-
-    beat_locations = data['beat_locations']
-    
-    if not beat_locations:
-        return jsonify({'error': 'La lista de beat_locations no puede estar vacía.'}), 400
-
-    beat_location = beat_locations[0]
+    lat = data['latitud']
+    lon = data['longitud']
 
     def encontrar_area(lat, lon, df):
         punto = Point(lon, lat)
@@ -64,11 +56,6 @@ def get_beat_location():
             if punto.within(row['the_geom']):  # Asegúrate de que 'geometry' sea el nombre correcto de la columna
                 return row['BEAT_NUM']
         return 'No se encontró área'
-
-    if not beat_location or len(beat_location) != 2:
-        return jsonify({'error': 'El formato de beat_location es incorrecto.'}), 400
-
-    lat, lon = beat_location
 
     # Obtener el objeto poligonal (Multipolygon) del Ward deseado
     poligono_ward = encontrar_area(lat, lon, df)

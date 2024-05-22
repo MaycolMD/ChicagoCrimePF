@@ -29,6 +29,15 @@ function GetMap() {
         datasource = new atlas.source.DataSource();
         map.sources.add(datasource);
 
+        // Así se verán las líneas
+        //Add a layer for rendering the route lines and have it render under the map labels.
+        map.layers.add(new atlas.layer.LineLayer(datasource, null, {
+            strokeColor: ['get', 'strokeColor'],
+            strokeWidth: 5,
+            lineJoin: 'round',
+            lineCap: 'round'
+        }), 'labels');
+
         //Renderizar puntos o juntarlos en multipuntos
         //Add a layer for rendering point data.
         map.layers.add(new atlas.layer.SymbolLayer(datasource, null, {
@@ -48,6 +57,12 @@ function GetMap() {
         var initialPoint = new atlas.data.Feature(new atlas.data.Point([-87.6667239, 42.0086426]), {
             title: "Rogers Park",
             icon: "pin-blue"
+        });
+
+        // punto final B
+        var finalPoint = new atlas.data.Feature(new atlas.data.Point([-87.8106004, 41.8871291]), {
+            title: "Oak Park",
+            icon: "pin-red"
         });
 
         // Definir dónde va a estar la cámara inicial (entre punto A y punto B en este caso)
@@ -89,8 +104,6 @@ function GetMap() {
                     probability: 0,
                 });
 
-                console.log(ui.item)
-
                 if (endPoint) {
                     datasource.add(endPoint);
                 }
@@ -129,352 +142,94 @@ function GetMap() {
 
 
 function enviarFormulario() {
-    // Aquí puedes obtener los valores del formulario y realizar las acciones necesarias.
-    var inicio = document.getElementById("queryTbxInicio").value;
-    var fin = document.getElementById("queryTbxFin").value;
-    var transporte = document.getElementById("transporte").value;
-    console.log("Inicio:", inicio);
-    console.log("Fin:", fin);
-    console.log("Transporte:", transporte);
-
     // Punto inicial A
     //Create the GeoJSON objects which represent the start and end points of the route.
-
-    console.log(endPoint)
 
 
     datasource.clear();
 
     // Agregar los puntos
     //Add the data to the data source.
-    datasource.add([startPoint, endPoint]);
+    datasource.add([startPoint]);
 
-    // Definir dónde va a estar la cámara inicial (entre punto A y punto B en este caso)
-    map.setCamera({
-        bounds: atlas.data.BoundingBox.fromData([startPoint, endPoint]),
-        padding: 150,
-    });
-    // Query Ward
+
+    // Query Beat
     // Solicitar el MultiPolygon del Ward desde el endpoint Flask
-    var wards = [['0111', 0.8],
-    ['0112', 0.9],
-    ['0113', 0.8]];  // Cambia esto según el Ward que desees obtener
+    // Realiza la solicitud HTTP POST al endpoint del servidor
 
-    console.log(wards)
-    //Create a popup but leave it closed so we can update it and display it later.
-    popup = new atlas.Popup({
-        position: [0, 0]
-    });
+    // Realiza la solicitud HTTP POST al endpoint del servidor
+    var data = {
+        lat: startPoint.geometry.coordinates[1],
+        long: startPoint.geometry.coordinates[0]
+    };
 
-    function getRandomPastelColor() {
-        var alpha = 0.5;
-        var pastelColors = [
-            "rgba(119, 221, 119, " + alpha + ")", // Pastel Green
-            "rgba(255, 105, 97, " + alpha + ")",  // Pastel Red
-            "rgba(174, 198, 207, " + alpha + ")", // Pastel Blue
-            "rgba(255, 179, 71, " + alpha + ")",  // Pastel Orange
-            "rgba(253, 253, 150, " + alpha + ")"  // Pastel Yellow
-            // Puedes agregar más colores pastel según sea necesario
-        ];
-        var randomIndex = Math.floor(Math.random() * pastelColors.length);
-        return pastelColors[randomIndex];
-    }
+    console.log(data)
 
-    wards.forEach(function (wardId) {
-        fetch(`http://127.0.0.1:5000/get_beat_polygon?beat_id=${wardId[0]}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.type === 'MultiPolygon') {
-                    // Crear el objeto GeoJSON para el MultiPolygon
-                    var multiPolygon = {
-                        "type": "Feature",
-                        "geometry": data,
-                        "properties": {
-                            "strokeColor": getRandomPastelColor(),  // Color del borde del polígono
-                            "fillColor": getRandomPastelColor(), // Color de relleno del polígono
-                            "ward": wardId[0],
-                            "probability": wardId[1]
-                        }
-                    };
-
-                    // Añadir el objeto GeoJSON a la fuente de datos.
-                    datasource.add(multiPolygon);
-
-                    var polygonLayer = new atlas.layer.PolygonLayer(datasource, null, {
-                        filter: ['==', ['geometry-type'], 'Polygon'], // Renderizar solo los polígonos
-                        fillColor: ['get', 'fillColor'],  // Utilizar el color de relleno definido en las propiedades
-                        strokeColor: ['get', 'strokeColor'],  // Utilizar el color del borde definido en las propiedades
-                        strokeWidth: 2
-                    })
-                    // Añadir una capa para renderizar el MultiPolygon.
-                    map.layers.add(polygonLayer);
-
-                    //Add a mouse move event to the polygon layer to show a popup with information.
-                    map.events.add('mousemove', polygonLayer, function (e) {
-                        if (e.shapes && e.shapes.length > 0) {
-                            var properties = e.shapes[0].getProperties();
-
-                            //Update the content of the popup.
-                            popup.setOptions({
-                                content: '<div style="padding:10px"><b> Beat: ' + properties.ward + '</b><br/>Probabilidad de crimen: ' + (properties.probability * 100).toFixed(2) + ' %</div>',
-                                position: e.position
-                            });
-
-                            //Open the popup.
-                            popup.open(map);
-                        }
-                    });
-
-                    //Add a mouse leave event to the polygon layer to hide the popup.
-                    map.events.add('mouseleave', polygonLayer, function (e) {
-                        popup.close();
-                    });
-                } else {
-                    console.error("Error: Datos de polígono no válidos");
-                }
-            })
-            .catch(error => {
-                console.error('Error al obtener los datos del polígono:', error);
-            });
-    })
-
-    // Coordenadas Inicio : Coordenadas final
-    var query = startPoint.geometry.coordinates[1] + "," +
-        startPoint.geometry.coordinates[0] + ":" +
-        endPoint.geometry.coordinates[1] + "," +
-        endPoint.geometry.coordinates[0];
-
-    // Llamado al query de la ruta
-    var selectElement = document.getElementById("transporte");
-
-    var travelMode = selectElement.value;
-
-    var url = `https://atlas.microsoft.com/route/directions/json?api-version=1.0&query=${query}&maxAlternatives=3&travelMode=${travelMode}`;
-
-    //Make a search route request
-    fetch(url, {
+    fetch('http://localhost:8001/crimes_for_point', {
+        method: 'POST',
         headers: {
-            "Subscription-Key": map.authentication.getToken()
-        }
-    }).then((response) => response.json())
-        .then((response) => {
-            // Itera sobre las tres primeras rutas alternativas.
-            // Rutas alternativas
-            for (let i = 0; i < 3; i++) {
-                var route = response.routes[i];
-                var routeCoordinates = [];
-                var acumProb = [];
-                var probs = [];
-
-                // Obtener las coordenadas de cada punto de la ruta
-                route.legs.forEach((leg) => {
-                    var legCoordinates = leg.points.map((point) => {
-                        return [point.longitude, point.latitude];
-                    });
-                    routeCoordinates = routeCoordinates.concat(legCoordinates);
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+        .then(response => response.json())
+        .then(data => {
+            // Puntos de crímen
+            // Add your crime points here.
+            var crimePoints = data.neighbors
+            console.log(crimePoints)
+            // Iterate over the crime points and add them to the data source.
+            crimePoints.forEach(function (crimePoint) {
+                console.log(Math.floor(crimePoint[1] * 1000) / 1000)
+                console.log(Math.floor(crimePoint[0] * 1000) / 1000)
+                var feature = new atlas.data.Feature(new atlas.data.Point([Math.floor(crimePoint[1] * 1000) / 1000, Math.floor(crimePoint[0] * 1000) / 1000]), {
+                    title: crimePoint[2],
+                    probability: crimePoint[3],
+                    icon: "pin-round-red" // Icono para indicar puntos de interés
                 });
-                // Añade cada ruta alternativa a la fuente de datos con un color diferente.
-                // Juntar todos los puntos con una sola línea
-                // Juntar todos los puntos con una sola línea
-                let feature = new atlas.data.Feature(new atlas.data.LineString(routeCoordinates), {
-                    strokeColor: "#2272B9",
-                    strokeWidth: 5,
-                    ruta: i + 1
-                });
+                datasource.add(feature);
 
-                // Agregar el objeto al datasource
-                datasource.add(feature, 0);
+            });
+            // Add a layer for rendering point data with custom text template.
+            var symbolLayer = new atlas.layer.SymbolLayer(datasource, null, {
+                iconOptions: {
+                    image: ['get', 'icon'],
+                    allowOverlap: true
+                },
+                textOptions: {
+                    textField: ['get', 'title'],
+                    offset: [0, 1.2]
+                },
+                filter: ['any', ['==', ['geometry-type'], 'Point'], ['==', ['geometry-type'], 'MultiPoint']] //Only render Point or MultiPoints in this layer.
+            });
 
-                // Realiza la solicitud HTTP POST al endpoint del servidor
-                var data = {
-                    crimePoints: routeCoordinates
-                };
+            // Almacena una referencia al popup abierto.
+            var currentPopup = new atlas.Popup({
+                position: [0, 0]
+            });
 
-                fetch('http://localhost:8000/crimes_for_route', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log('Success:', data);
-                        // Puntos de crímen
-                        // Add your crime points here.
-                        var crimePoints = data.info
+            //Add a mouse move event to the polygon layer to show a popup with information.
+            map.events.add('mousemove', symbolLayer, function (e) {
+                if (e.shapes && e.shapes.length > 0) {
+                    var properties = e.shapes[0].getProperties();
 
-                        // Iterate over the crime points and add them to the data source.
-                        crimePoints.forEach(function (crimePoint) {
-                            if (crimePoint[3] > 0.7) {
-                                console.log(crimePoint[1], crimePoint[0])
-                                var feature = new atlas.data.Feature(new atlas.data.Point([crimePoint[1], crimePoint[0]]), {
-                                    title: crimePoint[2],
-                                    probability: crimePoint[3],
-                                    icon: "pin-round-red" // Icono para indicar puntos de interés
-                                });
-                                datasource.add([feature]);
-                            }
-
-                        });
-                        // Add a layer for rendering point data with custom text template.
-                        var symbolLayer = new atlas.layer.SymbolLayer(datasource, null, {
-                            iconOptions: {
-                                image: ['get', 'icon'],
-                                allowOverlap: true
-                            },
-                            textOptions: {
-                                textField: ['get', 'title'],
-                                offset: [0, 1.2]
-                            },
-                            filter: ['any', ['==', ['geometry-type'], 'Point'], ['==', ['geometry-type'], 'MultiPoint']] //Only render Point or MultiPoints in this layer.
-                        });
-
-                        // Almacena una referencia al popup abierto.
-                        var currentPopup = new atlas.Popup({
-                            position: [0, 0]
-                        });
-
-                        //Add a mouse move event to the polygon layer to show a popup with information.
-                        map.events.add('mousemove', symbolLayer, function (e) {
-                            if (e.shapes && e.shapes.length > 0) {
-                                var properties = e.shapes[0].getProperties();
-
-                                //Update the content of the popup.
-                                currentPopup.setOptions({
-                                    content: '<div style="padding:10px"><b>' + properties.title + '</b><br/>Probabilidad: ' + (properties.probability * 100).toFixed(2) + ' %</div>',
-                                    position: e.position
-                                });
-
-                                //Open the currentPopup.
-                                currentPopup.open(map);
-                            }
-                        });
-
-                        //Add a mouse leave event to the polygon layer to hide the popup.
-                        map.events.add('mouseleave', symbolLayer, function (e) {
-                            currentPopup.close();
-                        });
-
-                        map.layers.add(symbolLayer);
-
-                        function calcularPromedio(lista) {
-                            // Verifica si la lista no está vacía
-                            if (lista.length === 0) return 0;
-
-                            // Suma todos los elementos de la lista
-                            let suma = lista.reduce((acumulador, valorActual) => acumulador + valorActual, 0);
-
-                            // Calcula el promedio dividiendo la suma por la cantidad de elementos
-                            let promedio = suma / lista.length;
-
-                            return promedio;
-                        }
-
-                        // Función para agregar tramos peligrosos a la capa de líneas.
-                        function addDangerousSegments(dangerousSegments) {
-                            var prom = calcularPromedio(acumProb);
-                            // Itera sobre los tramos peligrosos.
-                            dangerousSegments.forEach(function (segment) {
-                                // Crea un conjunto de coordenadas para el tramo peligroso.
-                                var coordinates = segment.map(function (point) {
-                                    return [point[1], point[0]]; // Invierte latitud y longitud.
-                                });
-
-                                // Agrega el tramo peligroso a la fuente de datos como una línea.
-                                datasource.add(new atlas.data.Feature(new atlas.data.LineString(coordinates), {
-                                    strokeColor: '#FF0000', // Color rojo para los tramos peligrosos.
-                                    strokeWidth: 5,
-                                    ruta: i + 1,
-                                    probability: prom
-                                }));
-                            });
-                        }
-
-                        // Función para agrupar puntos con una probabilidad mayor a 0.7.
-                        function groupCrimePointsByProbability(crimePoints) {
-                            var groupedSegments = [];
-                            var currentSegment = [];
-
-                            // Itera sobre los puntos de crimen.
-                            for (var i = 0; i < crimePoints.length; i++) {
-
-                                var currentPoint = crimePoints[i];
-                                
-                                acumProb.push(currentPoint[3]);
-
-                                // Comprueba si la probabilidad del crimen es mayor a 0.7.
-                                if (currentPoint[3] > 0.7) {
-                                    // Agrega el punto actual al segmento actual.
-                                    currentSegment.push([currentPoint[0], currentPoint[1]]);
-                                } else {
-                                    // Si hay puntos en el segmento actual, agrégalo al conjunto de segmentos agrupados.
-                                    if (currentSegment.length > 0) {
-                                        groupedSegments.push(currentSegment);
-                                        currentSegment = []; // Inicializa un nuevo segmento.
-                                    }
-                                }
-                            }
-
-                            // Si hay puntos en el segmento actual, agrégalo al conjunto de segmentos agrupados.
-                            if (currentSegment.length > 0) {
-                                groupedSegments.push(currentSegment);
-                            }
-
-                            return groupedSegments;
-                        }
-
-                        // Agrupa los puntos de crimen por probabilidad mayor a 0.7.
-                        var groupedSegments = groupCrimePointsByProbability(crimePoints);
-
-                        var promProb = calcularPromedio(acumProb);
-                        probs.push(promProb)
-
-                        console.log(groupedSegments)
-                        // Agrega los segmentos agrupados a la capa de datos.
-                        addDangerousSegments(groupedSegments);
-
-                        var LineLayer = new atlas.layer.LineLayer(datasource, null, {
-                            filter: ['==', ['geometry-type'], 'LineString'], // Renderizar solo los polígonos
-                            fillColor: ['get', 'fillColor'],  // Utilizar el color de relleno definido en las propiedades
-                            strokeColor: ['get', 'strokeColor'],  // Utilizar el color del borde definido en las propiedades
-                            strokeWidth: 5
-                        })
-                        // Añadir una capa para renderizar el MultiPolygon.
-                        map.layers.add(LineLayer);
-
-                        // Almacena una referencia al popup abierto.
-                        var LinePopup = new atlas.Popup({
-                            position: [0, 0]
-                        });
-
-                        //Add a mouse move event to the polygon layer to show a popup with information.
-                        map.events.add('mousemove', LineLayer, function (e) {
-                            if (e.shapes && e.shapes.length > 0) {
-                                var properties = e.shapes[0].getProperties();
-
-                                //Update the content of the popup.
-                                console.log('featureprop '+ properties.probability)
-                                LinePopup.setOptions({
-                                    content: '<div style="padding:10px"><b> Ruta: ' + properties.ruta + '</b><br/>Seguridad de la ruta: ' + (100 - (probs[properties.ruta-1] * 100)).toFixed(2) + ' %</div>',
-                                    position: e.position
-                                });
-
-                                //Open the popup.
-                                LinePopup.open(map);
-                            }
-                        });
-
-                        //Add a mouse leave event to the polygon layer to hide the popup.
-                        map.events.add('mouseleave', LineLayer, function (e) {
-                            LinePopup.close();
-                        });
-
-                    })
-                    .catch((error) => {
-                        console.error('Error:', error);
+                    //Update the content of the popup.
+                    currentPopup.setOptions({
+                        content: '<div style="padding:10px"><b>' + properties.title + '</b><br/>Probabilidad: ' + (properties.probability * 100).toFixed(2) + ' %</div>',
+                        position: e.position
                     });
-            }
+
+                    //Open the currentPopup.
+                    currentPopup.open(map);
+                }
+            });
+
+            //Add a mouse leave event to the polygon layer to hide the popup.
+            map.events.add('mouseleave', symbolLayer, function (e) {
+                currentPopup.close();
+            });
+
+            map.layers.add(symbolLayer);
         });
 
 }
