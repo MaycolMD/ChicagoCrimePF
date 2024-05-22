@@ -343,6 +343,8 @@ function enviarFormulario() {
             for (let i = 0; i < 3; i++) {
                 var route = response.routes[i];
                 var routeCoordinates = [];
+                var acumProb = [];
+                var probs = [];
 
                 // Obtener las coordenadas de cada punto de la ruta
                 route.legs.forEach((leg) => {
@@ -353,14 +355,15 @@ function enviarFormulario() {
                 });
                 // Añade cada ruta alternativa a la fuente de datos con un color diferente.
                 // Juntar todos los puntos con una sola línea
-                datasource.add(
-                    new atlas.data.Feature(new atlas.data.LineString(routeCoordinates), {
-                        strokeColor: "#2272B9",
-                        strokeWidth: 2
-                    }),
-                    0
-                );
-                console.log(routeCoordinates)
+                // Juntar todos los puntos con una sola línea
+                let feature = new atlas.data.Feature(new atlas.data.LineString(routeCoordinates), {
+                    strokeColor: "#2272B9",
+                    strokeWidth: 5,
+                    ruta: i + 1
+                });
+
+                // Agregar el objeto al datasource
+                datasource.add(feature, 0);
 
                 // Realiza la solicitud HTTP POST al endpoint del servidor
                 var data = {
@@ -380,7 +383,6 @@ function enviarFormulario() {
                         // Puntos de crímen
                         // Add your crime points here.
                         var crimePoints = data.info
-
 
                         // Iterate over the crime points and add them to the data source.
                         crimePoints.forEach(function (crimePoint) {
@@ -436,8 +438,22 @@ function enviarFormulario() {
 
                         map.layers.add(symbolLayer);
 
+                        function calcularPromedio(lista) {
+                            // Verifica si la lista no está vacía
+                            if (lista.length === 0) return 0;
+
+                            // Suma todos los elementos de la lista
+                            let suma = lista.reduce((acumulador, valorActual) => acumulador + valorActual, 0);
+
+                            // Calcula el promedio dividiendo la suma por la cantidad de elementos
+                            let promedio = suma / lista.length;
+
+                            return promedio;
+                        }
+
                         // Función para agregar tramos peligrosos a la capa de líneas.
                         function addDangerousSegments(dangerousSegments) {
+                            var prom = calcularPromedio(acumProb);
                             // Itera sobre los tramos peligrosos.
                             dangerousSegments.forEach(function (segment) {
                                 // Crea un conjunto de coordenadas para el tramo peligroso.
@@ -448,7 +464,9 @@ function enviarFormulario() {
                                 // Agrega el tramo peligroso a la fuente de datos como una línea.
                                 datasource.add(new atlas.data.Feature(new atlas.data.LineString(coordinates), {
                                     strokeColor: '#FF0000', // Color rojo para los tramos peligrosos.
-                                    strokeWidth: 5
+                                    strokeWidth: 5,
+                                    ruta: i + 1,
+                                    probability: prom
                                 }));
                             });
                         }
@@ -460,7 +478,10 @@ function enviarFormulario() {
 
                             // Itera sobre los puntos de crimen.
                             for (var i = 0; i < crimePoints.length; i++) {
+
                                 var currentPoint = crimePoints[i];
+                                
+                                acumProb.push(currentPoint[3]);
 
                                 // Comprueba si la probabilidad del crimen es mayor a 0.7.
                                 if (currentPoint[3] > 0.7) {
@@ -486,9 +507,48 @@ function enviarFormulario() {
                         // Agrupa los puntos de crimen por probabilidad mayor a 0.7.
                         var groupedSegments = groupCrimePointsByProbability(crimePoints);
 
+                        var promProb = calcularPromedio(acumProb);
+                        probs.push(promProb)
+
                         console.log(groupedSegments)
                         // Agrega los segmentos agrupados a la capa de datos.
                         addDangerousSegments(groupedSegments);
+
+                        var LineLayer = new atlas.layer.LineLayer(datasource, null, {
+                            filter: ['==', ['geometry-type'], 'LineString'], // Renderizar solo los polígonos
+                            fillColor: ['get', 'fillColor'],  // Utilizar el color de relleno definido en las propiedades
+                            strokeColor: ['get', 'strokeColor'],  // Utilizar el color del borde definido en las propiedades
+                            strokeWidth: 5
+                        })
+                        // Añadir una capa para renderizar el MultiPolygon.
+                        map.layers.add(LineLayer);
+
+                        // Almacena una referencia al popup abierto.
+                        var LinePopup = new atlas.Popup({
+                            position: [0, 0]
+                        });
+
+                        //Add a mouse move event to the polygon layer to show a popup with information.
+                        map.events.add('mousemove', LineLayer, function (e) {
+                            if (e.shapes && e.shapes.length > 0) {
+                                var properties = e.shapes[0].getProperties();
+
+                                //Update the content of the popup.
+                                console.log('featureprop '+ properties.probability)
+                                LinePopup.setOptions({
+                                    content: '<div style="padding:10px"><b> Ruta: ' + properties.ruta + '</b><br/>Seguridad de la ruta: ' + (100 - (probs[properties.ruta-1] * 100)).toFixed(2) + ' %</div>',
+                                    position: e.position
+                                });
+
+                                //Open the popup.
+                                LinePopup.open(map);
+                            }
+                        });
+
+                        //Add a mouse leave event to the polygon layer to hide the popup.
+                        map.events.add('mouseleave', LineLayer, function (e) {
+                            LinePopup.close();
+                        });
 
                     })
                     .catch((error) => {
