@@ -3,6 +3,8 @@ from flask_cors import CORS
 import pandas as pd
 from shapely import wkt
 from shapely.geometry import MultiPolygon
+from shapely.geometry import MultiPolygon, Point
+from pydantic import BaseModel
 
 app = Flask(__name__)
 CORS(app)  # Permitir todos los orígenes
@@ -40,6 +42,42 @@ def get_ward_polygon():
         return jsonify(poligono_ward)
     else:
         return jsonify({'error': f'No se encontró ningún polígono para el Ward con ID {beat_id}.'}), 404
+
+@app.route('/get_beat_location', methods=['POST'])
+def get_beat_location():
+    data = request.get_json()
+
+    # Verifica si 'beat_locations' está en los datos JSON
+    if 'beat_locations' not in data:
+        return jsonify({'error': 'El parámetro beat_locations es requerido.'}), 400
+
+    beat_locations = data['beat_locations']
+    
+    if not beat_locations:
+        return jsonify({'error': 'La lista de beat_locations no puede estar vacía.'}), 400
+
+    beat_location = beat_locations[0]
+
+
+    def encontrar_area(lat, lon, df):
+        punto = Point(lon, lat)
+        for index, row in df.iterrows():
+            if punto.within(row['the_geom']):  # Asegúrate de que 'geometry' sea el nombre correcto de la columna
+                return row['BEAT_NUM']
+        return 'No se encontró área'
+
+    if not beat_location or len(beat_location) != 2:
+        return jsonify({'error': 'El formato de beat_location es incorrecto.'}), 400
+
+    lat, lon = beat_location
+
+    # Obtener el objeto poligonal (Multipolygon) del Ward deseado
+    poligono_ward = encontrar_area(lat, lon, df)
+
+    if poligono_ward:
+        return jsonify({'BEAT_NUM': poligono_ward})
+    else:
+        return jsonify({'error': 'No se encontró ningún polígono para las coordenadas proporcionadas.'}), 404
 
 if __name__ == '__main__':
     app.run(debug=True)
