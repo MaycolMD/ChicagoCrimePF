@@ -58,7 +58,6 @@ def get_beat_location():
 
     beat_location = beat_locations[0]
 
-
     def encontrar_area(lat, lon, df):
         punto = Point(lon, lat)
         for index, row in df.iterrows():

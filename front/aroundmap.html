@@ -20,7 +20,7 @@
     <!-- Add a reference to the Azure Maps Rest Helper JavaScript file. -->
     <script src="https://samples.azuremaps.com/lib/azure-maps/azure-maps-helper.min.js"></script>
 
-    <script src="./js/map.js"></script>
+    <script src="./js/maparound.js"></script>
     <link rel="stylesheet" href="./css/styles.css">
 </head>
 
@@ -47,24 +47,13 @@
         </div>
     </nav>
 
-    <div id="myMap"></div>
+    <div id="myAroundMap"></div>
     <!-- Formulario para los inputs -->
     <form id="mapForm">
         <div class="ui-widget">
-            <label for="queryTbxInicio">Inicio </label>
+            <label for="queryTbxInicio">Dónde estoy </label>
             <input id="queryTbxInicio">
         </div>
-        <div class="ui-widget">
-            <label for="queryTbxFin">Fin </label>
-            <input id="queryTbxFin">
-        </div>
-        <label for="transporte">Medio de transporte</label>
-        <select id="transporte" name="transporte">
-            <option value="pedestrian">Vía peatonal</option>
-            <option value="car">Carro</option>
-            <option value="motorcycle">Motocicleta</option>
-            <option value="bicycle">Bicicleta</option>
-        </select>
         <button type="button" onclick="enviarFormulario()">Enviar</button>
     </form>
 </body>
