@@ -56,19 +56,21 @@ def get_crimes_for_route():
     try:
         for c in new_coordenadas:
             i = []
-            i.append(c[0][0])
-            i.append(c[0][1])
             prediction = model.predict(c)
             crimen = crime_mapping[prediction.item()]
-            i.append(crimen)
 
             proba = model.predict_proba(c)
             p = proba[0][prediction].item()
-            i.append(p)
 
-            info.append(i)
+            if(p>=0.6):
+                i.append(c[0][0])
+                i.append(c[0][1])
+                i.append(crimen)            
+                i.append(p)
 
-        return {info}  
+                info.append(i)
+
+        return {"info": info}  
     except Exception as e:
         raise HTTPException(status_code=403, detail=f"Sufriendo: {e}")
     
