@@ -27,8 +27,17 @@ def get_crimes_for_route(crime_data: CrimeData):
     print(crime_data)
     date =  datetime.datetime.now()
     day_week = date.weekday()
+    time = date.hour
 
-    path = f"./models/model_knn_dayWeek{day_week+1}.pkl"
+        
+    if (time in [7,8,9,10,11,12]):
+        range_time = 'morning'
+    elif (time in [13,14,15,16,17,18,19]):
+        range_time = 'afternoon'
+    else:
+        range_time = 'night'
+
+    path = f"./models/day{day_week+1}/knn_day{day_week+1}_{range_time}.pkl"
     print(path)
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Model file not found")
