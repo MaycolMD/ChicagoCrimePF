@@ -65,8 +65,8 @@ def get_crimes_for_point(point: CrimePoint):
             neighbors.append(np.array([lats[i], longs[i]]).reshape(1,-1))
 
         crime_mapping = {
-        0: 'CONTRA EL SEXO',
-        1:'CONTRA LA PERSONA',
+        0: 'CRIMEN CONTRA EL SEXO',
+        1:'CRIMEN CONTRA LA PERSONA',
         2: 'CRIMENES CONTRA MENORES Y VULNERABLES',
         3: 'CRIMENES RELACIONADOS CON DROGAS Y NARCOTICOS',
         4: 'OTROS CRIMENES MENORES Y VIOLACIONES DE LA LEY',
@@ -137,8 +137,8 @@ def get_crimes_for_route(crime_data: CrimeData):
     
 
     crime_mapping = {
-        0: 'CONTRA EL SEXO',
-        1:'CONTRA LA PERSONA',
+        0: 'CRIMEN CONTRA EL SEXO',
+        1:'CRIMEN CONTRA LA PERSONA',
         2: 'CRIMENES CONTRA MENORES Y VULNERABLES',
         3: 'CRIMENES RELACIONADOS CON DROGAS Y NARCOTICOS',
         4: 'OTROS CRIMENES MENORES Y VIOLACIONES DE LA LEY',

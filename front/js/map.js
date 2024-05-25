@@ -257,6 +257,21 @@ function enviarFormulario() {
                 var acumProb = [];
                 var probs = [];
 
+                // Almacena una referencia al popup abierto.
+                var LinePopup = new atlas.Popup({
+                    position: [0, 0]
+                });
+
+                // Almacena una referencia al popup abierto.
+                var currentPopup = new atlas.Popup({
+                    position: [0, 0]
+                });
+
+                //Create a popup but leave it closed so we can update it and display it later.
+                var popup = new atlas.Popup({
+                    position: [0, 0]
+                });
+
                 // Obtener las coordenadas de cada punto de la ruta
                 route.legs.forEach((leg) => {
                     var legCoordinates = leg.points.map((point) => {
@@ -296,7 +311,7 @@ function enviarFormulario() {
 
                         // Iterate over the crime points and add them to the data source.
                         crimePoints.forEach(function (crimePoint) {
-                            if (crimePoint[3] > 0.7) {
+                            if (crimePoint[3] > 0.6) {
                                 var feature = new atlas.data.Feature(new atlas.data.Point([crimePoint[1], crimePoint[0]]), {
                                     title: crimePoint[2],
                                     probability: crimePoint[3],
@@ -317,11 +332,6 @@ function enviarFormulario() {
                                 offset: [0, 1.2]
                             },
                             filter: ['any', ['==', ['geometry-type'], 'Point'], ['==', ['geometry-type'], 'MultiPoint']] //Only render Point or MultiPoints in this layer.
-                        });
-
-                        // Almacena una referencia al popup abierto.
-                        var currentPopup = new atlas.Popup({
-                            position: [0, 0]
                         });
 
                         //Add a mouse move event to the polygon layer to show a popup with information.
@@ -393,7 +403,7 @@ function enviarFormulario() {
                                 acumProb.push(currentPoint[3]);
 
                                 // Comprueba si la probabilidad del crimen es mayor a 0.7.
-                                if (currentPoint[3] > 0.7) {
+                                if (currentPoint[3] > 0.6) {
                                     // Agrega el punto actual al segmento actual.
                                     currentSegment.push([currentPoint[0], currentPoint[1]]);
                                 } else {
@@ -430,11 +440,6 @@ function enviarFormulario() {
                         })
                         // Añadir una capa para renderizar el MultiPolygon.
                         map.layers.add(LineLayer);
-
-                        // Almacena una referencia al popup abierto.
-                        var LinePopup = new atlas.Popup({
-                            position: [0, 0]
-                        });
 
                         //Add a mouse move event to the polygon layer to show a popup with information.
                         map.events.add('mousemove', LineLayer, function (e) {
@@ -491,13 +496,8 @@ function enviarFormulario() {
 
                             console.log(data.info)
 
-                            //Create a popup but leave it closed so we can update it and display it later.
-                            popup = new atlas.Popup({
-                                position: [0, 0]
-                            });
-
                             function getRandomPastelColor() {
-                                var alpha = 0.05;
+                                var alpha = 0.2;
                                 var pastelColors = [
                                     "rgba(119, 221, 119, " + alpha + ")", // Pastel Green
                                     "rgba(255, 105, 97, " + alpha + ")",  // Pastel Red
@@ -516,8 +516,6 @@ function enviarFormulario() {
                                     .then(data => {
                                         if (data.type === 'MultiPolygon') {
                                             // Crear el objeto GeoJSON para el MultiPolygon
-                                            
-
                                             var esta = true
                                             console.log(beatId[0])
                                             console.log(beatsDibujados)
@@ -565,7 +563,13 @@ function enviarFormulario() {
                                                         });
 
                                                         //Open the popup.
-                                                        popup.open(map);
+                                                        console.log(LinePopup)
+                                                        console.log(!LinePopup.isOpen())
+                                                        if (LinePopup.isOpen() || currentPopup.isOpen()) {
+                                                           
+                                                        } else {
+                                                            popup.open(map);
+                                                        }
                                                     }
                                                 });
 
