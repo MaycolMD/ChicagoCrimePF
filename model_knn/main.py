@@ -5,6 +5,8 @@ import datetime
 from joblib import load
 import numpy as np
 from pydantic import BaseModel
+from geopy.distance import distance
+from geopy.point import Point
 
 
 app = FastAPI()
@@ -26,15 +28,31 @@ class CrimePoint(BaseModel):
     lat: float
     long: float
 
+class CrimePoint(BaseModel):
+    lat: float
+    long: float
+
+def generate_circle_points(center_lat, center_lon, radius_km, num_points=100):
+    center_point = Point(center_lat, center_lon)
+    circle_points = []
+
+    # Generar puntos en la circunferencia a intervalos regulares de ángulos
+    for bearing in range(0, 360, int(360 / num_points)):
+        destination = distance(kilometers=radius_km).destination(center_point, bearing)
+        circle_points.append((destination.latitude, destination.longitude))
+
+    return circle_points
+
+
 @app.post("/crimes_for_point")
 def get_crimes_for_point(point: CrimePoint):
-    date =  datetime.datetime.now()
+    date = datetime.datetime.now()
     day_week = date.weekday()
     time = date.hour
 
-    if (time in [7,8,9,10,11,12]):
+    if time in [7, 8, 9, 10, 11, 12]:
         range_time = 'morning'
-    elif (time in [13,14,15,16,17,18,19]):
+    elif time in [13, 14, 15, 16, 17, 18, 19]:
         range_time = 'afternoon'
     else:
         range_time = 'night'
@@ -48,43 +66,30 @@ def get_crimes_for_point(point: CrimePoint):
         model = load(path)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading model: {e}")
-    
-    coord = np.array([point.lat, point.long]).reshape(1, -1)
 
-    neighbors = []
     try:
-        distances, indices = model.kneighbors(coord)
-
-        delta_lat = distances[0] / 111
-        delta_long = distances[0] / (111 * np.cos(np.radians(coord[0][0])))
-
-        lats = coord[0][0] + delta_lat
-        longs = coord[0][1] + delta_long
-
-        for i in range(len(distances[0])):
-            neighbors.append(np.array([lats[i], longs[i]]).reshape(1,-1))
+        circle_points = generate_circle_points(point.lat, point.long, radius_km=0.3, num_points=30)
+        points = [np.array(p).reshape(1, -1) for p in circle_points]
 
         crime_mapping = {
-        0: 'CRIMEN CONTRA EL SEXO',
-        1:'CRIMEN CONTRA LA PERSONA',
-        2: 'CRIMENES CONTRA MENORES Y VULNERABLES',
-        3: 'CRIMENES RELACIONADOS CON DROGAS Y NARCOTICOS',
-        4: 'OTROS CRIMENES MENORES Y VIOLACIONES DE LA LEY',
-        5: 'ROBOS'
+            0: 'CRIMEN CONTRA EL SEXO',
+            1: 'CRIMEN CONTRA LA PERSONA',
+            2: 'CRIMENES CONTRA MENORES Y VULNERABLES',
+            3: 'CRIMENES RELACIONADOS CON DROGAS Y NARCOTICOS',
+            4: 'OTROS CRIMENES MENORES Y VIOLACIONES DE LA LEY',
+            5: 'ROBOS'
         }
 
         info = []
-    
-        for n in neighbors:
+        for c in points:
             i = []
-            i.append(n[0][0])
-            i.append(n[0][1])
-            prediction = model.predict(n)
+            i.append(c[0][0])
+            i.append(c[0][1])
+            prediction = model.predict(c)
             crimen = crime_mapping[prediction.item()]
             i.append(crimen)
 
-            proba = model.predict_proba(n)
-            print(proba)
+            proba = model.predict_proba(c)
             p = proba[0][prediction].item()
             i.append(p)
 

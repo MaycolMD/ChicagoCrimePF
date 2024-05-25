@@ -177,11 +177,8 @@ function enviarFormulario() {
             // Puntos de crímen
             // Add your crime points here.
             var crimePoints = data.neighbors
-            console.log(crimePoints)
             // Iterate over the crime points and add them to the data source.
             crimePoints.forEach(function (crimePoint) {
-                console.log(Math.floor(crimePoint[1] * 1000) / 1000)
-                console.log(Math.floor(crimePoint[0] * 1000) / 1000)
                 var feature = new atlas.data.Feature(new atlas.data.Point([Math.floor(crimePoint[1] * 1000) / 1000, Math.floor(crimePoint[0] * 1000) / 1000]), {
                     title: crimePoint[2],
                     probability: crimePoint[3],
