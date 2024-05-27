@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: ./front
+    container_name: front_container
+    ports: 
+      - '8000:8000'
+    stdin_open: true
+    tty: true
+
+  model_knn:
+    build: ./model_knn
+    container_name: knn
+    ports:
+      - '8001:8001'
+
+  model_rf:
+    build: ./model_rf
+    container_name: rf
+    ports:
+      - '8002:8002'
+
+  map:
+    build: ./map
+    container_name: beat
+    ports:
+      - '5000:5000'

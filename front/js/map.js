@@ -511,7 +511,7 @@ function enviarFormulario() {
                             }
 
                             beats.forEach(function (beatId) {
-                                fetch(`http://127.0.0.1:5000/get_beat_polygon?beat_id=${beatId[0]}`)
+                                fetch(`http://localhost:5000/get_beat_polygon?beat_id=${beatId[0]}`)
                                     .then(response => response.json())
                                     .then(data => {
                                         if (data.type === 'MultiPolygon') {
