@@ -11,7 +11,7 @@ WORKDIR /app
 COPY . .
 
 # Exponer el puerto que usará http-server
-EXPOSE 8000
+EXPOSE 3000
 
 # Comando para ejecutar http-server
-CMD ["http-server", "-p", "8000"]
+CMD ["http-server", "-p", "3000"]

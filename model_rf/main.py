@@ -63,7 +63,7 @@ def get_prob_for_beats(crime_data: CrimeData):
     try:
         
         for cords in coordenadas:
-            beat_temporal = requests.post('http://localhost:5000/get_beat_location', json={"longitud":cords[0], "latitud":cords[1]})
+            beat_temporal = requests.post('http://beat:5000/get_beat_location', json={"longitud":cords[0], "latitud":cords[1]})
             beat_temporal_json = beat_temporal.json()
             if(beat_temporal_json['BEAT_NUM'] not in beats):
                 if(beat_temporal_json['BEAT_NUM'] != 'No se encontró área'):

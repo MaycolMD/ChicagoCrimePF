@@ -249,7 +249,7 @@ function enviarFormulario() {
         .then((response) => {
             // Itera sobre las tres primeras rutas alternativas.
             // Rutas alternativas
-            
+
             var beatsDibujados = []
             for (let i = 0; i < 3; i++) {
                 var route = response.routes[i];
@@ -479,8 +479,6 @@ function enviarFormulario() {
                         crimePoints: dataRecortada
                     };
 
-                    console.log(data)
-
                     fetch('http://localhost:8002/prob_crime_in_route', {
                         method: 'POST',
                         headers: {
@@ -493,8 +491,6 @@ function enviarFormulario() {
                             // Puntos de crímen
                             // Add your crime points here.
                             var beats = data.info
-
-                            console.log(data.info)
 
                             function getRandomPastelColor() {
                                 var alpha = 0.2;
@@ -517,14 +513,11 @@ function enviarFormulario() {
                                         if (data.type === 'MultiPolygon') {
                                             // Crear el objeto GeoJSON para el MultiPolygon
                                             var esta = true
-                                            console.log(beatId[0])
-                                            console.log(beatsDibujados)
                                             beatsDibujados.forEach(element => {
-                                                if(element == beatId[0] ){
+                                                if (element == beatId[0]) {
                                                     esta = false
                                                 }
                                             });
-                                            console.log(esta)
                                             if (esta) {
                                                 var multiPolygon = {
                                                     "type": "Feature",
@@ -563,10 +556,8 @@ function enviarFormulario() {
                                                         });
 
                                                         //Open the popup.
-                                                        console.log(LinePopup)
-                                                        console.log(!LinePopup.isOpen())
                                                         if (LinePopup.isOpen() || currentPopup.isOpen()) {
-                                                           
+
                                                         } else {
                                                             popup.open(map);
                                                         }
